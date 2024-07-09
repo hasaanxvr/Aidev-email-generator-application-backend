@@ -1,12 +1,14 @@
-from fastapi import FastAPI, APIRouter
-from fastapi import APIRouter
-
+from fastapi import FastAPI, Response
+from routers import document, email
 
 app = FastAPI()
+app.include_router(document.router, prefix='/api', tags=['documents'])
+app.include_router(email.router, prefix='/api', tags=['emails'])
+
 
 @app.get('/')
 def welcome_message():
-    return {'message': 'Welcome to Personalized Email Generation Application!', 'version': '0.0.1'}
+    Response(status_code=200, content={'message': 'Welcome to Personalized Email Generator!'})
 
 if __name__ == "__main__":
     import uvicorn
