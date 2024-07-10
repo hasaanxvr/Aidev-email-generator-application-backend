@@ -19,8 +19,8 @@ class DocumentReader:
         Returns:
             str: _description_
         """
-        loader = PyPDFLoader(file_path)
-        pages = loader.load_and_split()
+        pdf_loader = PyPDFLoader(file_path)
+        pages = pdf_loader.load_and_split()
         
         data = ''
         for page in pages:
@@ -37,14 +37,22 @@ class DocumentReader:
         Returns:
             str: Complete content of the file
         """
-        loader = Docx2txtLoader(file_path)
-        data_raw = loader.load()
+        word_loader = Docx2txtLoader(file_path)
+        data_raw = word_loader.load()
         data = data_raw[0].page_content
         
         return data
     
     
-    def fetch_data_from_selective_documents(self, selected_documents) -> list[str]:
+    def fetch_data_from_selective_documents(self, selected_documents: list[str]) -> list[str]:
+        """Fetches data from the documents passed in the argument
+
+        Args:
+            selected_documents (list[str]): _description_
+
+        Returns:
+            list[str]: returns the content of each document as a list of strings
+        """
         document_names = os.listdir(self.documents_folder_path)
         document_content = []
         
@@ -63,7 +71,7 @@ class DocumentReader:
                     document_content.append(data)           
                 
                 else:
-                    logging.exception('Document Type not Supported. Use Word or PDF')
+                    logging.exception(f'Could not read {document_name}. Document Type not Supported. Use Word or PDF')
 
                 
         return document_content
@@ -95,37 +103,7 @@ class DocumentReader:
                 document_content.append(data)           
             
             else:
-                logging.exception('Document Type not Supported. Use Word or PDF')
-    
-            
-
-        return document_content
-    
-    
-    def fetch_data_from_documents_dict(self, key) -> list[dict]:
-        document_names = os.listdir(self.documents_folder_path)
-        document_content = []
-        
-        for document_name in document_names:
-            
-            file_type = document_name.split('.')[-1]
-            document_path = self.documents_folder_path + '/' + document_name
-            
-            if file_type == 'pdf':
-                data = self._read_pdf(document_path)
-                data_dict = {}
-                data_dict[key] = data
-                document_content.append(data_dict)
-            
-            elif file_type == 'docx':
-                data = self._read_word(document_path) 
-                data_dict = {}
-                data_dict[key] = data
-                document_content.append(data_dict)           
-            
-            else:
-                logging.exception('Document Type not Supported. Use Word or PDF')
-    
+                logging.exception(f'Could not read {document_name}. Document Type not Supported. Use Word or PDF')
             
 
         return document_content

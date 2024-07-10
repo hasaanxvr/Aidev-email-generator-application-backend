@@ -1,10 +1,12 @@
+import os
+import logging
 import requests
 import json
 from DocumentReader import DocumentReader
 from langchain_openai import ChatOpenAI
 
 class EmailGenerator:
-    def __init__(self, linkedin_url: str, user_prompt: str, selected_documents: list[str], selected_emails: list[str]):
+    def __init__(self, linkedin_url: str, user_prompt: str, selected_documents: list[str], selected_emails: list[str], model: str ='gpt-4-turbo'):
         
         self.linkedin_url: str = linkedin_url
         self.user_prompt: str = user_prompt
@@ -17,12 +19,12 @@ class EmailGenerator:
         
         # Can make the LLM configurable as well
         NotImplemented
-        self.llm= ChatOpenAI(model='gpt-4-turbo')
+        self.llm= ChatOpenAI(model=model)
         
         # Secure these keys 
         NotImplemented
-        self.linkedin_api_key: str = 'YOUR_API_KEY'
-        self.open_ai_api_key: str = 'YOUR_API_KEY'
+        self.linkedin_api_key: str = os.environ.get('LINKEDIN_API_KEY') 
+        self.open_ai_api_key: str = os.environ.get('OPENAI_API_KEY')
         
     
         
@@ -55,13 +57,13 @@ class EmailGenerator:
         linkedin_user_data = self._get_user_data()
         if linkedin_user_data is not None:
             sample_emails: list[str] = self.email_reader.fetch_data_from_selective_documents(self.selected_emails)
-            company_documents: list[str] = self.email_reader.fetch_data_from_selective_documents(self.selected_emails)
+            company_documents: list[str] = self.document_reader.fetch_data_from_selective_documents(self.selected_emails)
             
             
             # Addition of company information
             self.user_prompt += 'DOCUMENTS CONTAINING USEFUL COMPANY INFORMATION ARE GIVEN BELOW'
             for doc in company_documents:
-                self.user_prompt += 'COMAPNY DOCUMENT: /n'
+                self.user_prompt += 'COMPANY DOCUMENT: /n'
                 self.user_prompt += doc + '/n /n'
                 
                 
@@ -92,9 +94,11 @@ class EmailGenerator:
             ("human", f"{self.user_prompt}"),
             ]
             
-            response = self.llm.invoke(messages)
+            try:
+                response = self.llm.invoke(messages)
             
-            return response.content
-        
-        return -1
+                return response.content
+            except:
+                logging.exception('The LLM from OPENAI was not invoked properly. Please check your internet connection.')
+                return -1
         
