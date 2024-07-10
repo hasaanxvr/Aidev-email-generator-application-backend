@@ -16,13 +16,9 @@ class EmailGenerator:
         # Defining the document reader objects for fetching emails and documents
         self.email_reader = DocumentReader(documents_folder_path='db/sample_emails')
         self.document_reader = DocumentReader(documents_folder_path='db/company_documents')
-        
-        # Can make the LLM configurable as well
-        NotImplemented
+
         self.llm= ChatOpenAI(model=model)
         
-        # Secure these keys 
-        NotImplemented
         self.linkedin_api_key: str = os.environ.get('LINKEDIN_API_KEY') 
         self.open_ai_api_key: str = os.environ.get('OPENAI_API_KEY')
         
