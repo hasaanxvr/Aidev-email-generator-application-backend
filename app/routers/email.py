@@ -26,12 +26,56 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     upload_dir = Path("db/sample_emails")
     upload_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
     
+    file_names = os.listdir(upload_dir)
+    
+     # keep track of all the files with the same name that already exist
+    files_that_already_exist = []
+    # keep track of all the files that were uploaded successfully
+    successful_file_uploads = []
+    # keep track of all the files that were not uploaded successfully
+    unsuccessful_file_uploads = []
+    
     for file in files:
+        
+        if file.filename in file_names:
+            files_that_already_exist.append(file.filename)
+            continue
+            
         file_location = upload_dir / file.filename
-        with file_location.open("wb") as f:
-            f.write(file.file.read())
+        
+        try:
+            with file_location.open("wb") as f:
+                f.write(file.file.read())
+            successful_file_uploads.append(file.filename)
+        except:
+            unsuccessful_file_uploads.append(file.filename)
 
-    return JSONResponse(content={"info": "Files uploaded successfully"}, status_code=201)
+    data = {
+        'files_that_already_exist': files_that_already_exist,
+        'successful_file_uploads': successful_file_uploads,
+        'unsucessful_file_uploads': unsuccessful_file_uploads
+    }
+    
+    if successful_file_uploads and not unsuccessful_file_uploads and not files_that_already_exist:
+        message = "Files uploaded successfully."
+        status_code = 201
+    elif successful_file_uploads and (unsuccessful_file_uploads or files_that_already_exist):
+        message = "Some files were uploaded successfully, but others were not (either they already existed or failed to upload)."
+        status_code = 207  # Multi-Status for mixed results
+    elif not successful_file_uploads and files_that_already_exist:
+        message = "No new files uploaded; all files already exist."
+        status_code = 409  # Conflict, no new files uploaded
+    else:
+        message = "All uploads failed due to errors."
+        status_code = 500  # Internal Server Error, all uploads failed
+
+    response = {
+        'message': message,
+        'details': data
+    }
+
+    return JSONResponse(content=response, status_code=status_code)
+    
 
 
 @router.delete("/email/delete")
