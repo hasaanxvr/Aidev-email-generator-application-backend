@@ -33,7 +33,7 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     # keep track of all the files that were uploaded successfully
     successful_file_uploads = []
     # keep track of all the files that were not uploaded successfully
-    unsucessful_file_uploads = []
+    unsuccessful_file_uploads = []
     
     for file in files:
         
@@ -48,17 +48,34 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
                 f.write(file.file.read())
             successful_file_uploads.append(file.filename)
         except:
-            unsucessful_file_uploads.append(file.filename)
+            unsuccessful_file_uploads.append(file.filename)
 
     data = {
         'files_that_already_exist': files_that_already_exist,
         'successful_file_uploads': successful_file_uploads,
-        'unsucessful_file_uploads': unsucessful_file_uploads
+        'unsucessful_file_uploads': unsuccessful_file_uploads
     }
     
-    return JSONResponse(content=data, status_code=201)
+    if successful_file_uploads and not unsuccessful_file_uploads and not files_that_already_exist:
+        message = "Files uploaded successfully."
+        status_code = 201
+    elif successful_file_uploads and (unsuccessful_file_uploads or files_that_already_exist):
+        message = "Some files were uploaded successfully, but others were not (either they already existed or failed to upload)."
+        status_code = 207  # Multi-Status for mixed results
+    elif not successful_file_uploads and files_that_already_exist:
+        message = "No new files uploaded; all files already exist."
+        status_code = 409  # Conflict, no new files uploaded
+    else:
+        message = "All uploads failed due to errors."
+        status_code = 500  # Internal Server Error, all uploads failed
+
+    response = {
+        'message': message,
+        'details': data
+    }
+
+    return JSONResponse(content=response, status_code=status_code)
     
-    return JSONResponse(content=data, status_code=201)
 
 
 @router.delete("/email/delete")
