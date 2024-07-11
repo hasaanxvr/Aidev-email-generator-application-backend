@@ -35,8 +35,9 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
 
 
 @router.delete("/email/delete")
-async def delete_email(email_document_name: str) -> JSONResponse:
-    file_path: str = f'db/sample_emails/{email_document_name}'
+async def delete_email(data: dict) -> JSONResponse:
+    file_name = data['file_name']
+    file_path: str = f'db/sample_emails/{file_name}'
     
     try:
         os.remove(file_path)
@@ -51,4 +52,4 @@ async def delete_email(email_document_name: str) -> JSONResponse:
         print(f"An error occurred while deleting the file: {e}")
         raise HTTPException(status_code=500, detail='Internal Server Error')
         
-    return JSONResponse(status_code=200, content={'message': f'Deleted {email_document_name} successfully!'})
+    return JSONResponse(status_code=200, content={'message': f'Deleted {file_name} successfully!'})
