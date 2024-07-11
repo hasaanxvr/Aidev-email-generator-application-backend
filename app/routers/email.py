@@ -26,12 +26,39 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     upload_dir = Path("db/sample_emails")
     upload_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
     
+    file_names = os.listdir(upload_dir)
+    
+     # keep track of all the files with the same name that already exist
+    files_that_already_exist = []
+    # keep track of all the files that were uploaded successfully
+    successful_file_uploads = []
+    # keep track of all the files that were not uploaded successfully
+    unsucessful_file_uploads = []
+    
     for file in files:
+        
+        if file.filename in file_names:
+            files_that_already_exist.append(file.filename)
+            continue
+            
         file_location = upload_dir / file.filename
-        with file_location.open("wb") as f:
-            f.write(file.file.read())
+        
+        try:
+            with file_location.open("wb") as f:
+                f.write(file.file.read())
+            successful_file_uploads.append(file.filename)
+        except:
+            unsucessful_file_uploads.append(file.filename)
 
-    return JSONResponse(content={"info": "Files uploaded successfully"}, status_code=201)
+    data = {
+        'files_that_already_exist': files_that_already_exist,
+        'successful_file_uploads': successful_file_uploads,
+        'unsucessful_file_uploads': unsucessful_file_uploads
+    }
+    
+    return JSONResponse(content=data, status_code=201)
+    
+    return JSONResponse(content=data, status_code=201)
 
 
 @router.delete("/email/delete")
