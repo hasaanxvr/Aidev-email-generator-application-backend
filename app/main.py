@@ -39,6 +39,7 @@ def generate_email(email_generation_request: EmailGenerationRequest) -> JSONResp
         'generated_email': email
     }
     
+    print(response_data)
     return JSONResponse(status_code=200, content=response_data)
 
 if __name__ == "__main__":

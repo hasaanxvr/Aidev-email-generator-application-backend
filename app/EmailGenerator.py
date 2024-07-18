@@ -19,7 +19,8 @@ class EmailGenerator:
 
         self.llm= ChatOpenAI(model=model)
         
-        self.linkedin_api_key: str = os.environ.get('LINKEDIN_API_KEY') 
+        #self.linkedin_api_key: str = os.environ.get('LOkC-q7SjAV8ihl9DC7bCQ') 
+        self.linkedin_api_key: str = 'LOkC-q7SjAV8ihl9DC7bCQ'
         self.open_ai_api_key: str = os.environ.get('OPENAI_API_KEY')
         
     
@@ -51,9 +52,10 @@ class EmailGenerator:
     
     def generate_email(self) ->str:
         linkedin_user_data = self._get_user_data()
+        
         if linkedin_user_data is not None:
             sample_emails: list[str] = self.email_reader.fetch_data_from_selective_documents(self.selected_emails)
-            company_documents: list[str] = self.document_reader.fetch_data_from_selective_documents(self.selected_emails)
+            company_documents: list[str] = self.document_reader.fetch_data_from_selective_documents(self.selected_documents)
             
             
             # Addition of company information
@@ -92,7 +94,6 @@ class EmailGenerator:
             
             try:
                 response = self.llm.invoke(messages)
-            
                 return response.content
             except:
                 logging.exception('The LLM from OPENAI was not invoked properly. Please check your internet connection.')

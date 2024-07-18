@@ -72,22 +72,24 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     return JSONResponse(content=response, status_code=status_code)
 
 
-@router.delete("/document/delete")
+@router.delete("/documents/delete")
 async def delete_document(data: dict) -> JSONResponse:
-    file_name = data['file_name']
-    file_path: str = f'db/company_documents/{file_name}'
-    
-    try:
-        os.remove(file_path)
-        print(f"File '{file_path}' has been deleted successfully.")
-    except FileNotFoundError:
-        print(f"File '{file_path}' does not exist.")
-        raise HTTPException(status_code=404, detail='File not found')
-    except PermissionError:
-        print(f"Permission denied: Unable to delete '{file_path}'.")
-        raise HTTPException(status_code=500, detail='The server does not have permission to delete the file')
-    except Exception as e:
-        print(f"An error occurred while deleting the file: {e}")
-        raise HTTPException(status_code=500, detail='Internal Server Error')
+
+    files = data['files']
+    for file in files:
+        file_path: str = f'db/company_documents/{file}'
         
-    return JSONResponse(status_code=200, content={'message': f'Deleted {file_name} successfully!'})
+        try:
+            os.remove(file_path)
+            print(f"File '{file_path}' has been deleted successfully.")
+        except FileNotFoundError:
+            print(f"File '{file_path}' does not exist.")
+            raise HTTPException(status_code=404, detail='File not found')
+        except PermissionError:
+            print(f"Permission denied: Unable to delete '{file_path}'.")
+            raise HTTPException(status_code=500, detail='The server does not have permission to delete the file')
+        except Exception as e:
+            print(f"An error occurred while deleting the file: {e}")
+            raise HTTPException(status_code=500, detail='Internal Server Error')
+        
+    return JSONResponse(status_code=200, content={'message': f'Deleted files successfully!'})
