@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 from routers import document, email
 from EmailGenerator import EmailGenerator
 from schemas.EmailGenerationRequest import EmailGenerationRequest
+from schemas.SignupRequest import SignupRequest
+from schemas.LoginRequest import LoginRequest
 
 app = FastAPI()
 
@@ -41,6 +43,20 @@ def generate_email(email_generation_request: EmailGenerationRequest) -> JSONResp
     
     print(response_data)
     return JSONResponse(status_code=200, content=response_data)
+
+
+@app.post('/signup')
+def signup(signup_request: SignupRequest) -> JSONResponse:
+    request_data = signup_request.dict()
+    print(request_data)
+    return JSONResponse(status_code=200, content=request_data)
+    
+
+@app.post('/login')
+def login(login_request: LoginRequest) -> JSONResponse:
+    request_data = login_request.dict()
+    print(request_data)
+    return JSONResponse(status_code=200, content=request_data)
 
 if __name__ == "__main__":
     import uvicorn

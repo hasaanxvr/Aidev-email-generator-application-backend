@@ -93,3 +93,9 @@ async def delete_document(data: dict) -> JSONResponse:
             raise HTTPException(status_code=500, detail='Internal Server Error')
         
     return JSONResponse(status_code=200, content={'message': f'Deleted files successfully!'})
+
+
+
+@router.get("/documents/?/preview")
+async def get_document():
+    NotImplemented
