@@ -6,6 +6,7 @@ from EmailGenerator import EmailGenerator
 from schemas.EmailGenerationRequest import EmailGenerationRequest
 from schemas.SignupRequest import SignupRequest
 from schemas.LoginRequest import LoginRequest
+from core.security import get_current_user, create_jwt_token
 
 app = FastAPI()
 
@@ -55,8 +56,30 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
 @app.post('/login')
 def login(login_request: LoginRequest) -> JSONResponse:
     request_data = login_request.dict()
-    print(request_data)
-    return JSONResponse(status_code=200, content=request_data)
+    
+    access_token = create_jwt_token(request_data, 15)
+    
+    # Add credential handling logic. Check if user exists or not.
+    NotImplemented
+    
+    return_data = {
+        'access_token' : access_token,
+        'message': 'Login successful!'
+    }
+    
+    response =  JSONResponse(status_code=200, content=return_data)
+    
+    """
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # Ensure this is only set to True in production
+        samesite="Strict"
+    )
+    """
+    
+    return response
 
 if __name__ == "__main__":
     import uvicorn

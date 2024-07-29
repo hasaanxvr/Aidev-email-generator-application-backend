@@ -1,25 +1,25 @@
 import os
 from typing import List
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import JSONResponse
 from pathlib import Path
+from core.security import get_current_user  # Assuming this function is defined for JWT validation
 
 router = APIRouter()
 
 @router.get('/documents')
-def get_documents() -> dict:  
-    try:    
+def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
+    try:
         document_names = os.listdir('db/company_documents')
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail='Could not find the documents.')
 
     return JSONResponse(content={'document_names': document_names}, status_code=200)
 
-
 @router.post("/documents/upload")
-async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
+async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
     upload_dir = Path("db/company_documents")
-    upload_dir.mkdir(parents=True, exist_ok=True) 
+    upload_dir.mkdir(parents=True, exist_ok=True)
     
     file_names = os.listdir(upload_dir)
     
@@ -31,7 +31,6 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     unsuccessful_file_uploads = []
     
     for file in files:
-        
         if file.filename in file_names:
             files_that_already_exist.append(file.filename)
             continue
@@ -71,10 +70,8 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
 
     return JSONResponse(content=response, status_code=status_code)
 
-
 @router.delete("/documents/delete")
-async def delete_document(data: dict) -> JSONResponse:
-
+async def delete_document(data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     files = data['files']
     for file in files:
         file_path: str = f'db/company_documents/{file}'
@@ -93,9 +90,3 @@ async def delete_document(data: dict) -> JSONResponse:
             raise HTTPException(status_code=500, detail='Internal Server Error')
         
     return JSONResponse(status_code=200, content={'message': f'Deleted files successfully!'})
-
-
-
-@router.get("/documents/?/preview")
-async def get_document():
-    NotImplemented

@@ -1,31 +1,29 @@
 import os
 from typing import List
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import JSONResponse
 from pathlib import Path
-
+from core.security import get_current_user
 
 router = APIRouter()
 
-
 @router.get('/emails')
-def get_documents() -> dict:  
-    try:    
+def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
+    try:
         sample_emails = os.listdir('db/sample_emails')
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail='Could not find the sample emails.')
 
     return JSONResponse(content={'sample_emails': sample_emails}, status_code=200)
 
-
 @router.post("/emails/upload")
-async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
+async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
     upload_dir = Path("db/sample_emails")
     upload_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
     
     file_names = os.listdir(upload_dir)
     
-     # keep track of all the files with the same name that already exist
+    # keep track of all the files with the same name that already exist
     files_that_already_exist = []
     # keep track of all the files that were uploaded successfully
     successful_file_uploads = []
@@ -33,7 +31,6 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     unsuccessful_file_uploads = []
     
     for file in files:
-        
         if file.filename in file_names:
             files_that_already_exist.append(file.filename)
             continue
@@ -72,11 +69,9 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     }
 
     return JSONResponse(content=response, status_code=status_code)
-    
-
 
 @router.delete("/emails/delete")
-async def delete_email(data: dict) -> JSONResponse:
+async def delete_email(data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     files = data['files']
     
     for file in files:
