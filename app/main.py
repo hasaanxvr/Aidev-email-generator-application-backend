@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,7 +7,9 @@ from EmailGenerator import EmailGenerator
 from schemas.EmailGenerationRequest import EmailGenerationRequest
 from schemas.SignupRequest import SignupRequest
 from schemas.LoginRequest import LoginRequest
-from core.security import get_current_user, create_jwt_token
+from config import DATABASE_NAME, FILE_STORAGE_PATH
+from db.utils import username_exists, insert_user, login_valid
+from core.security import create_jwt_token
 
 app = FastAPI()
 
@@ -49,7 +52,21 @@ def generate_email(email_generation_request: EmailGenerationRequest) -> JSONResp
 @app.post('/signup')
 def signup(signup_request: SignupRequest) -> JSONResponse:
     request_data = signup_request.dict()
-    print(request_data)
+    
+    if username_exists(DATABASE_NAME, request_data['username']):
+        raise HTTPException(status_code=409, detail='The username is already taken!')        
+    
+    
+    insert_user(DATABASE_NAME, request_data['username'],request_data['password'], request_data['first_name'],  request_data['last_name'])
+    
+    username = request_data['username']
+    
+    # Make relevant data stores
+    os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
+    os.makedirs(f'{FILE_STORAGE_PATH}/{username}/company_documents', exist_ok=True)
+    os.makedirs(f'{FILE_STORAGE_PATH}/{username}/sample_emails', exist_ok=True)
+    
+    
     return JSONResponse(status_code=200, content=request_data)
     
 
@@ -57,27 +74,17 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
 def login(login_request: LoginRequest) -> JSONResponse:
     request_data = login_request.dict()
     
+    if not login_valid(DATABASE_NAME, request_data['username'], request_data['password']):
+        raise HTTPException(status_code=401, detail='INVALID Username or Password!')
+
     access_token = create_jwt_token(request_data, 15)
-    
-    # Add credential handling logic. Check if user exists or not.
-    NotImplemented
-    
+
     return_data = {
-        'access_token' : access_token,
+        'access_token': access_token,
         'message': 'Login successful!'
     }
     
-    response =  JSONResponse(status_code=200, content=return_data)
-    
-    """
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=False,  # Ensure this is only set to True in production
-        samesite="Strict"
-    )
-    """
+    response = JSONResponse(status_code=200, content=return_data)
     
     return response
 

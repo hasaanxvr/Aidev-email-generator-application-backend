@@ -10,7 +10,8 @@ router = APIRouter()
 @router.get('/documents')
 def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
     try:
-        document_names = os.listdir('db/company_documents')
+        username = current_user['username']
+        document_names = os.listdir(f'file_storage/{username}/company_documents')
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail='Could not find the documents.')
 
@@ -18,7 +19,8 @@ def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
 
 @router.post("/documents/upload")
 async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
-    upload_dir = Path("db/company_documents")
+    username = current_user['username']
+    upload_dir = Path(f"file_storage/{username}/company_documents")
     upload_dir.mkdir(parents=True, exist_ok=True)
     
     file_names = os.listdir(upload_dir)
@@ -73,8 +75,9 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
 @router.delete("/documents/delete")
 async def delete_document(data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     files = data['files']
+    username = current_user['username']
     for file in files:
-        file_path: str = f'db/company_documents/{file}'
+        file_path: str = f'file_storage/{username}/company_documents/{file}'
         
         try:
             os.remove(file_path)
