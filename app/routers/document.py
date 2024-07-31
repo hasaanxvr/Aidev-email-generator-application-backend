@@ -21,7 +21,7 @@ def get_documents(current_user: dict = Depends(get_current_user)) -> JSONRespons
     return JSONResponse(content={'document_names': document_names}, status_code=200)
 
 
-@router.get('/document/{document_name}')
+@router.get('/documents/{document_name}')
 def get_document(document_name: str, current_user: dict = Depends(get_current_user)):
     username = current_user['username']
     document_path = Path(f'file_storage/{username}/company_documents/{document_name}')

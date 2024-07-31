@@ -83,12 +83,12 @@ def login(login_request: LoginRequest) -> JSONResponse:
     if not login_valid(DATABASE_NAME, request_data['username'], request_data['password']):
         raise HTTPException(status_code=401, detail='INVALID Username or Password!')
 
-    access_token = create_jwt_token(request_data, 600)
+    access_token = create_jwt_token(request_data, 3600)
 
     return_data = {
         'access_token': access_token,
         'message': 'Login successful!',
-        'expires_in': 600
+        'expires_in': 3600
     }
     
     response = JSONResponse(status_code=200, content=return_data)

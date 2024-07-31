@@ -19,10 +19,10 @@ def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
     return JSONResponse(content={'sample_emails': sample_emails}, status_code=200)
 
 
-@router.get('/document/{email_name}')
-def get_document(document_name: str, current_user: dict = Depends(get_current_user)):
+@router.get('/emails/{email_name}')
+def get_document(email_name: str, current_user: dict = Depends(get_current_user)):
     username = current_user['username']
-    document_path = Path(f'file_storage/{username}/sample_emails/{document_name}')
+    document_path = Path(f'file_storage/{username}/sample_emails/{email_name}')
     
     # Check if the file exists
     if not document_path.is_file():
@@ -30,7 +30,7 @@ def get_document(document_name: str, current_user: dict = Depends(get_current_us
     
     # Try to return the file response
     try:
-        return FileResponse(path=document_path, filename=document_name)
+        return FileResponse(path=document_path, filename=email_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error accessing the Sample Email: {str(e)}")
 
