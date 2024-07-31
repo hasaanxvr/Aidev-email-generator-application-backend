@@ -6,7 +6,7 @@ from DocumentReader import DocumentReader
 from langchain_openai import ChatOpenAI
 
 class EmailGenerator:
-    def __init__(self, linkedin_url: str, user_prompt: str, selected_documents: list[str], selected_emails: list[str], model: str ='gpt-4-turbo'):
+    def __init__(self, linkedin_url: str, user_prompt: str, selected_documents: list[str], selected_emails: list[str], model: str ='gpt-4-turbo', username = ''):
         
         self.linkedin_url: str = linkedin_url
         self.user_prompt: str = user_prompt
@@ -14,8 +14,8 @@ class EmailGenerator:
         self.selected_emails: list[str] = selected_emails
         
         # Defining the document reader objects for fetching emails and documents
-        self.email_reader = DocumentReader(documents_folder_path='db/sample_emails')
-        self.document_reader = DocumentReader(documents_folder_path='db/company_documents')
+        self.email_reader = DocumentReader(documents_folder_path=f'file_storage/{username}/sample_emails')
+        self.document_reader = DocumentReader(documents_folder_path=f'file_storage/{username}/company_documents')
 
         self.llm= ChatOpenAI(model=model)
         
@@ -23,6 +23,7 @@ class EmailGenerator:
         self.linkedin_api_key: str = 'LOkC-q7SjAV8ihl9DC7bCQ'
         self.open_ai_api_key: str = os.environ.get('OPENAI_API_KEY')
         
+        self.username : str = username
     
         
         
@@ -54,8 +55,8 @@ class EmailGenerator:
         linkedin_user_data = self._get_user_data()
         
         if linkedin_user_data is not None:
-            sample_emails: list[str] = self.email_reader.fetch_data_from_selective_documents(self.selected_emails)
-            company_documents: list[str] = self.document_reader.fetch_data_from_selective_documents(self.selected_documents)
+            sample_emails: list[str] = self.email_reader.fetch_data_from_selective_documents(self.selected_emails, self.username)
+            company_documents: list[str] = self.document_reader.fetch_data_from_selective_documents(self.selected_documents, self.username)
             
             
             # Addition of company information

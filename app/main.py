@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from routers import document, email
@@ -9,17 +9,21 @@ from schemas.SignupRequest import SignupRequest
 from schemas.LoginRequest import LoginRequest
 from config import DATABASE_NAME, FILE_STORAGE_PATH
 from db.utils import username_exists, insert_user, login_valid
-from core.security import create_jwt_token
+from core.security import create_jwt_token, get_current_user
+
 
 app = FastAPI()
 
-# Add CORS middleware
+origins = [
+    "http://localhost:3000",  # Your React app's URL
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development; change this to your frontend's URL in production
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers
@@ -31,10 +35,12 @@ def welcome_message() -> JSONResponse:
     return JSONResponse(status_code=200, content={'message': 'Welcome to Personalized Email Generator!'})
 
 @app.post('/generate-email')
-def generate_email(email_generation_request: EmailGenerationRequest) -> JSONResponse:
+def generate_email(email_generation_request: EmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     request_data: dict = email_generation_request.dict()
     
-    email_generator = EmailGenerator(**request_data)
+    username = current_user['username']
+    
+    email_generator = EmailGenerator(**request_data, username=username)
     email = email_generator.generate_email()
     
     if email == -1:
@@ -77,14 +83,16 @@ def login(login_request: LoginRequest) -> JSONResponse:
     if not login_valid(DATABASE_NAME, request_data['username'], request_data['password']):
         raise HTTPException(status_code=401, detail='INVALID Username or Password!')
 
-    access_token = create_jwt_token(request_data, 15)
+    access_token = create_jwt_token(request_data, 600)
 
     return_data = {
         'access_token': access_token,
-        'message': 'Login successful!'
+        'message': 'Login successful!',
+        'expires_in': 600
     }
     
     response = JSONResponse(status_code=200, content=return_data)
+    
     
     return response
 

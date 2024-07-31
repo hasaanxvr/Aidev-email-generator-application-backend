@@ -1,14 +1,17 @@
 import os
 from typing import List
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 from core.security import get_current_user  # Assuming this function is defined for JWT validation
 
 router = APIRouter()
 
+
+#This just returns the name of the documents
 @router.get('/documents')
-def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
+def get_documents(current_user: dict = Depends(get_current_user)) -> JSONResponse:
+
     try:
         username = current_user['username']
         document_names = os.listdir(f'file_storage/{username}/company_documents')
@@ -16,6 +19,24 @@ def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
         raise HTTPException(status_code=500, detail='Could not find the documents.')
 
     return JSONResponse(content={'document_names': document_names}, status_code=200)
+
+
+@router.get('/document/{document_name}')
+def get_document(document_name: str, current_user: dict = Depends(get_current_user)):
+    username = current_user['username']
+    document_path = Path(f'file_storage/{username}/company_documents/{document_name}')
+    
+    # Check if the file exists
+    if not document_path.is_file():
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Try to return the file response
+    try:
+        return FileResponse(path=document_path, filename=document_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error accessing the document: {str(e)}")
+
+    
 
 @router.post("/documents/upload")
 async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:

@@ -1,12 +1,13 @@
 import os
 from typing import List
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 from core.security import get_current_user
 
 router = APIRouter()
 
+# This just returns the names of the emails
 @router.get('/emails')
 def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
     try:
@@ -17,6 +18,24 @@ def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
 
     return JSONResponse(content={'sample_emails': sample_emails}, status_code=200)
 
+
+@router.get('/document/{email_name}')
+def get_document(document_name: str, current_user: dict = Depends(get_current_user)):
+    username = current_user['username']
+    document_path = Path(f'file_storage/{username}/sample_emails/{document_name}')
+    
+    # Check if the file exists
+    if not document_path.is_file():
+        raise HTTPException(status_code=404, detail="Sample not found")
+    
+    # Try to return the file response
+    try:
+        return FileResponse(path=document_path, filename=document_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error accessing the Sample Email: {str(e)}")
+
+
+
 @router.post("/emails/upload")
 async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
     username = current_user['username']
@@ -25,11 +44,9 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
     
     file_names = os.listdir(upload_dir)
     
-    # keep track of all the files with the same name that already exist
+
     files_that_already_exist = []
-    # keep track of all the files that were uploaded successfully
     successful_file_uploads = []
-    # keep track of all the files that were not uploaded successfully
     unsuccessful_file_uploads = []
     
     for file in files:
@@ -57,13 +74,13 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
         status_code = 201
     elif successful_file_uploads and (unsuccessful_file_uploads or files_that_already_exist):
         message = "Some files were uploaded successfully, but others were not (either they already existed or failed to upload)."
-        status_code = 207  # Multi-Status for mixed results
+        status_code = 207  
     elif not successful_file_uploads and files_that_already_exist:
         message = "No new files uploaded; all files already exist."
-        status_code = 409  # Conflict, no new files uploaded
+        status_code = 409  
     else:
         message = "All uploads failed due to errors."
-        status_code = 500  # Internal Server Error, all uploads failed
+        status_code = 500  
 
     response = {
         'message': message,
@@ -94,3 +111,4 @@ async def delete_email(data: dict, current_user: dict = Depends(get_current_user
             raise HTTPException(status_code=500, detail='Internal Server Error')
             
     return JSONResponse(status_code=200, content={'message': f'Deleted all files successfully!'})
+

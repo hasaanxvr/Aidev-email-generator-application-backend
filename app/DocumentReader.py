@@ -6,7 +6,7 @@ from langchain_community.document_loaders import Docx2txtLoader
 
 
 class DocumentReader:
-    def __init__(self, documents_folder_path = 'documents'):
+    def __init__(self, documents_folder_path):
         
         self.documents_folder_path = documents_folder_path
         
@@ -44,7 +44,7 @@ class DocumentReader:
         return data
     
     
-    def fetch_data_from_selective_documents(self, selected_documents: list[str]) -> list[str]:
+    def fetch_data_from_selective_documents(self, selected_documents: list[str], username: str) -> list[str]:
         """Fetches data from the documents passed in the argument
 
         Args:

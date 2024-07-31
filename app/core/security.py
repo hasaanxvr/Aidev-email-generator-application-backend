@@ -17,13 +17,13 @@ def create_jwt_token(data: dict, expires_delta: int):
 
     Args:
         data (dict): data from the user. 
-        expires_delta (int): expirtion delta of the token (in minutes)
+        expires_delta (int): expirtion delta of the token (in seconds)
 
     Returns:
         string: JWT Token
     """
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=expires_delta)
+    expire = datetime.utcnow() + timedelta(seconds=expires_delta)
     
     to_encode.update({'exp': expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, ALGORITHM)
@@ -45,11 +45,10 @@ def decode_jwt_token(access_token) -> dict:
         return user_data
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
+
     token = credentials.credentials
     return decode_jwt_token(token)
     
