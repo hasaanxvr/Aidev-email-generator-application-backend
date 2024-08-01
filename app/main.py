@@ -1,4 +1,6 @@
 import os
+import sqlite3
+from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -34,6 +36,51 @@ app.include_router(email.router, prefix='/api', tags=['emails'])
 def welcome_message() -> JSONResponse:
     return JSONResponse(status_code=200, content={'message': 'Welcome to Personalized Email Generator!'})
 
+
+
+@app.get('/email-history')
+def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONResponse:
+    username = current_user['username']
+    
+    conn = sqlite3.connect('db/email-generation.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            SELECT date, linkedinUrl, userPrompt, selectedDocuments, selectedEmails, generatedEmail
+            FROM EmailHistory
+            WHERE username = ?
+        ''', (username,))
+        
+        rows = cursor.fetchall()
+        if not rows:
+            raise HTTPException(status_code=404, detail='No email history found for this user')
+        
+        email_history = []
+        for row in rows:
+            email_history.append({
+                'date': row[0],
+                'linkedinUrl': row[1],
+                'userPrompt': row[2],
+                'selectedDocuments': row[3],
+                'selectedEmails': row[4],
+                'generatedEmail': row[5]
+            })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail='Failed to fetch email history from the database') from e
+    finally:
+        conn.close()
+    
+    return JSONResponse(status_code=200, content=email_history)
+
+
+
+
+
+
+
+
 @app.post('/generate-email')
 def generate_email(email_generation_request: EmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     request_data: dict = email_generation_request.dict()
@@ -46,6 +93,31 @@ def generate_email(email_generation_request: EmailGenerationRequest, current_use
     if email == -1:
         raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
     
+    # Write to the database
+    conn = sqlite3.connect('db\email-generation.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO EmailHistory (date, linkedinUrl, userPrompt, selectedDocuments, selectedEmails, generatedEmail, username)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            datetime.now().isoformat(),
+            request_data['linkedin_url'],
+            request_data['user_prompt'],
+            ','.join(request_data['selected_documents']),
+            ','.join(request_data['selected_emails']),
+            email,
+            username
+        ))
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail='Failed to write to the database') from e
+    finally:
+        conn.close()
+    
     response_data = {
         'message': 'Email Generated Successfully!',
         'generated_email': email
@@ -53,6 +125,7 @@ def generate_email(email_generation_request: EmailGenerationRequest, current_use
     
     print(response_data)
     return JSONResponse(status_code=200, content=response_data)
+
 
 
 @app.post('/signup')
