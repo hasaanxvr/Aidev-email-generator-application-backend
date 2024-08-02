@@ -42,7 +42,7 @@ def welcome_message() -> JSONResponse:
 def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONResponse:
     username = current_user['username']
     
-    conn = sqlite3.connect('db/email-generation.db')
+    conn = sqlite3.connect('email-generation.db')
     cursor = conn.cursor()
     
     try:
@@ -53,8 +53,6 @@ def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONRes
         ''', (username,))
         
         rows = cursor.fetchall()
-        if not rows:
-            raise HTTPException(status_code=404, detail='No email history found for this user')
         
         email_history = []
         for row in rows:
@@ -78,9 +76,6 @@ def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONRes
 
 
 
-
-
-
 @app.post('/generate-email')
 def generate_email(email_generation_request: EmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     request_data: dict = email_generation_request.dict()
@@ -94,9 +89,8 @@ def generate_email(email_generation_request: EmailGenerationRequest, current_use
         raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
     
     # Write to the database
-    conn = sqlite3.connect('db\email-generation.db')
+    conn = sqlite3.connect('email-generation.db')
     cursor = conn.cursor()
-    
     try:
         cursor.execute('''
             INSERT INTO EmailHistory (date, linkedinUrl, userPrompt, selectedDocuments, selectedEmails, generatedEmail, username)
