@@ -10,8 +10,12 @@ from schemas.EmailGenerationRequest import EmailGenerationRequest
 from schemas.SignupRequest import SignupRequest
 from schemas.LoginRequest import LoginRequest
 from config import DATABASE_NAME, FILE_STORAGE_PATH
-from db.utils import username_exists, insert_user, login_valid
+from db.Database import MongoDatabase
 from core.security import create_jwt_token, get_current_user
+
+
+db_handler = MongoDatabase()
+
 
 
 app = FastAPI()
@@ -126,11 +130,11 @@ def generate_email(email_generation_request: EmailGenerationRequest, current_use
 def signup(signup_request: SignupRequest) -> JSONResponse:
     request_data = signup_request.dict()
     
-    if username_exists(DATABASE_NAME, request_data['username']):
+    if db_handler.username_exists(request_data['username']):
         raise HTTPException(status_code=409, detail='The username is already taken!')        
     
     
-    insert_user(DATABASE_NAME, request_data['username'],request_data['password'], request_data['first_name'],  request_data['last_name'])
+    db_handler.insert_user(request_data['username'],request_data['password'], request_data['first_name'],  request_data['last_name'])
     
     username = request_data['username']
     
@@ -147,7 +151,7 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
 def login(login_request: LoginRequest) -> JSONResponse:
     request_data = login_request.dict()
     
-    if not login_valid(DATABASE_NAME, request_data['username'], request_data['password']):
+    if not db_handler.login_valid(request_data['username'], request_data['password']):
         raise HTTPException(status_code=401, detail='INVALID Username or Password!')
 
     access_token = create_jwt_token(request_data, 3600)
