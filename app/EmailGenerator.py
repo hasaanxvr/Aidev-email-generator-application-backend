@@ -4,11 +4,13 @@ import requests
 import json
 from DocumentReader import DocumentReader
 from langchain_openai import ChatOpenAI
+from RetirevalStrategy import LinkedInDataRetrievalStrategy, NameCompanyDataRetrievalStrategy, UserDataRetrievalStrategy
+
+
 
 class EmailGenerator:
-    def __init__(self, linkedin_url: str, user_prompt: str, selected_documents: list[str], selected_emails: list[str], model: str ='gpt-4-turbo', username = ''):
+    def __init__(self,user_prompt: str, selected_documents: list[str], selected_emails: list[str], retrieval_strategy:UserDataRetrievalStrategy, model: str ='gpt-4-turbo', username = ''):
         
-        self.linkedin_url: str = linkedin_url
         self.user_prompt: str = user_prompt
         self.selected_documents: list[str] = selected_documents
         self.selected_emails: list[str] = selected_emails
@@ -19,40 +21,16 @@ class EmailGenerator:
 
         self.llm= ChatOpenAI(model=model)
         
-        #self.linkedin_api_key: str = os.environ.get('LOkC-q7SjAV8ihl9DC7bCQ') 
-        self.linkedin_api_key: str = 'LOkC-q7SjAV8ihl9DC7bCQ'
         self.open_ai_api_key: str = os.environ.get('OPENAI_API_KEY')
         
         self.username : str = username
+        self.data_retrieval_strategy = retrieval_strategy
+        
+        
     
         
-        
-    def _get_user_data(self):
-        
-        headers = {'Authorization': 'Bearer ' + self.linkedin_api_key}
-        api_endpoint = 'https://nubela.co/proxycurl/api/v2/linkedin'
-        
-        # Add more parameter options
-        NotImplemented
-        
-        params = {
-
-            'linkedin_profile_url': self.linkedin_url,
-        }
-        response = requests.get(api_endpoint,
-                                params=params,
-                                headers=headers)
-
-        if response.status_code != 200:
-            return None
-        
-        data = json.dumps(response.json(), indent=4)
-        
-        return data
-    
-    
     def generate_email(self) ->str:
-        linkedin_user_data = self._get_user_data()
+        linkedin_user_data = self.data_retrieval_strategy.get_user_data()
         
         if linkedin_user_data is not None:
             sample_emails: list[str] = self.email_reader.fetch_data_from_selective_documents(self.selected_emails, self.username)
@@ -99,4 +77,4 @@ class EmailGenerator:
             except:
                 logging.exception('The LLM from OPENAI was not invoked properly. Please check your internet connection.')
                 return -1
-        
+            

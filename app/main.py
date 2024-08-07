@@ -6,12 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from routers import document, email
 from EmailGenerator import EmailGenerator
-from schemas.EmailGenerationRequest import EmailGenerationRequest
+from schemas.EmailGenerationRequest import LinkedinURLEmailGenerationRequest, NameEmailGenerationRequest
 from schemas.SignupRequest import SignupRequest
 from schemas.LoginRequest import LoginRequest
 from config import DATABASE_NAME, FILE_STORAGE_PATH
 from db.Database import MongoDatabase
 from core.security import create_jwt_token, get_current_user
+from RetirevalStrategy import LinkedInDataRetrievalStrategy, NameCompanyDataRetrievalStrategy
 
 
 db_handler = MongoDatabase()
@@ -78,15 +79,39 @@ def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONRes
 
 
 
+@app.post('/generate-email/name')
+def generate_email_name(email_generation_request: NameEmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
+    
+    import pdb
+    pdb.set_trace()
+    request_data: dict = email_generation_request.dict()
+    username = current_user['username']
+    
+    retrieval_strategy = NameCompanyDataRetrievalStrategy(request_data['first_name'], request_data['company'], request_data['last_name'], request_data['location'], request_data['title'])
+    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
+    email = email_generator.generate_email()
+    
+    if email == -1:
+        raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
+    
+    response_data = {
+        'message': 'Email Generated Successfully!',
+        'generated_email': email
+    }
+    
+    print(response_data)
+    return JSONResponse(status_code=200, content=response_data)
+    
+    
 
-
-@app.post('/generate-email')
-def generate_email(email_generation_request: EmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
+@app.post('/generate-email/linkedinurl')
+def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     request_data: dict = email_generation_request.dict()
     
     username = current_user['username']
     
-    email_generator = EmailGenerator(**request_data, username=username)
+    retrieval_strategy = LinkedInDataRetrievalStrategy(request_data['linkedin_url'])
+    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
     email = email_generator.generate_email()
     
     if email == -1:
@@ -123,6 +148,7 @@ def generate_email(email_generation_request: EmailGenerationRequest, current_use
     
     print(response_data)
     return JSONResponse(status_code=200, content=response_data)
+
 
 
 
