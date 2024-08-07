@@ -1,2 +1,4 @@
 __pycache__/
 /app/file_storage
+/app/email-generation.db
+/app/core/config.py
