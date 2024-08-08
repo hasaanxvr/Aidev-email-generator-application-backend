@@ -1,7 +1,12 @@
 import os
 import sqlite3
+import requests
+import json
+import smtplib
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Depends
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from routers import document, email
@@ -9,6 +14,8 @@ from EmailGenerator import EmailGenerator
 from schemas.EmailGenerationRequest import LinkedinURLEmailGenerationRequest, NameEmailGenerationRequest
 from schemas.SignupRequest import SignupRequest
 from schemas.LoginRequest import LoginRequest
+from schemas.FindEmailRequest import FindEmailRequest
+from schemas.SendEmailRequest import SendEmailRequest
 from config import DATABASE_NAME, FILE_STORAGE_PATH
 from db.Database import MongoDatabase
 from core.security import create_jwt_token, get_current_user
@@ -16,8 +23,6 @@ from RetirevalStrategy import LinkedInDataRetrievalStrategy, NameCompanyDataRetr
 
 
 db_handler = MongoDatabase()
-
-
 
 app = FastAPI()
 
@@ -47,33 +52,7 @@ def welcome_message() -> JSONResponse:
 def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONResponse:
     username = current_user['username']
     
-    conn = sqlite3.connect('email-generation.db')
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
-            SELECT date, linkedinUrl, userPrompt, selectedDocuments, selectedEmails, generatedEmail
-            FROM EmailHistory
-            WHERE username = ?
-        ''', (username,))
-        
-        rows = cursor.fetchall()
-        
-        email_history = []
-        for row in rows:
-            email_history.append({
-                'date': row[0],
-                'linkedinUrl': row[1],
-                'userPrompt': row[2],
-                'selectedDocuments': row[3],
-                'selectedEmails': row[4],
-                'generatedEmail': row[5]
-            })
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail='Failed to fetch email history from the database') from e
-    finally:
-        conn.close()
+    email_history = db_handler.fetch_emails(username)
     
     return JSONResponse(status_code=200, content=email_history)
 
@@ -82,8 +61,6 @@ def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONRes
 @app.post('/generate-email/name')
 def generate_email_name(email_generation_request: NameEmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     
-    import pdb
-    pdb.set_trace()
     request_data: dict = email_generation_request.dict()
     username = current_user['username']
     
@@ -94,10 +71,36 @@ def generate_email_name(email_generation_request: NameEmailGenerationRequest, cu
     if email == -1:
         raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
     
+    
+    person_data = email_generator.linkedin_user_data
+    person_data = json.loads(person_data)
+    
+    url = person_data['url']
+    person_data = person_data['profile']
+    person_data['url'] = url
+    
+    
+        
+    data = {
+        'linkedinurl': person_data['url'],
+        'user_prompt': request_data['user_prompt'],
+        'selected_emails': request_data['selected_emails'],
+        'selected_documents': request_data['selected_documents'],
+        'generated_email': email,
+        'username': username,
+        'time': datetime.now().isoformat()
+    }
+    
+    
+    db_handler.insert_email(data)
+    db_handler.insert_person(person_data)
+    
     response_data = {
         'message': 'Email Generated Successfully!',
-        'generated_email': email
+        'generated_email': email,
+        'linkedinurl': person_data['url']
     }
+    
     
     print(response_data)
     return JSONResponse(status_code=200, content=response_data)
@@ -114,36 +117,38 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
     email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
     email = email_generator.generate_email()
     
+    
     if email == -1:
         raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
     
-    # Write to the database
-    conn = sqlite3.connect('email-generation.db')
-    cursor = conn.cursor()
-    try:
-        cursor.execute('''
-            INSERT INTO EmailHistory (date, linkedinUrl, userPrompt, selectedDocuments, selectedEmails, generatedEmail, username)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            datetime.now().isoformat(),
-            request_data['linkedin_url'],
-            request_data['user_prompt'],
-            ','.join(request_data['selected_documents']),
-            ','.join(request_data['selected_emails']),
-            email,
-            username
-        ))
-        
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail='Failed to write to the database') from e
-    finally:
-        conn.close()
+    
+    data = {
+        'linkedinurl': request_data['linkedin_url'],
+        'user_prompt': request_data['user_prompt'],
+        'selected_emails': request_data['selected_emails'],
+        'selected_documents': request_data['selected_documents'],
+        'generated_email': email,
+        'username': username,
+        'time': datetime.now().isoformat()
+    }
+    
+    
+    person_data = email_generator.linkedin_user_data
+    person_data = json.loads(person_data)
+    person_data['url'] = request_data['linkedin_url']
+    
+    
+    
+    db_handler.insert_email(data)
+    db_handler.insert_person(person_data)
+
+    
     
     response_data = {
         'message': 'Email Generated Successfully!',
-        'generated_email': email
+        'generated_email': email,
+        'linkedinurl': person_data['url']
+
     }
     
     print(response_data)
@@ -193,6 +198,61 @@ def login(login_request: LoginRequest) -> JSONResponse:
     
     return response
 
+
+@app.post('/find-email')
+def find_email(request_data: FindEmailRequest, current_user: dict = Depends(get_current_user)):
+
+    request_data: dict = request_data.dict() 
+
+    api_key = 'LOkC-q7SjAV8ihl9DC7bCQ'
+    headers = {'Authorization': 'Bearer ' + api_key}
+    api_endpoint = 'https://nubela.co/proxycurl/api/contact-api/personal-email'
+    params = {
+        'linkedin_profile_url': request_data['linkedinurl'],
+        'email_validation': 'include',    
+    }
+    
+    response = requests.get(api_endpoint, params=params, headers=headers)
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        return JSONResponse(content=response_data, status_code=200)
+    else:
+        return JSONResponse(content={"error": "Failed to fetch email"}, status_code=response.status_code)
+
+    
+
+@app.post('/send-email')
+def send_email(request_data: SendEmailRequest, current_user: dict = Depends(get_current_user)):
+    request_data = request_data.dict()
+
+    msg = MIMEMultipart()
+    msg['From'] = request_data['sender_email']
+    msg['To'] = request_data['receiver_email']
+    msg['Subject'] = request_data['subject']
+
+    # Attach the email body
+    msg.attach(MIMEText(request_data['email'], 'plain'))
+
+    try:
+        # Connect to the Gmail SMTP server and send the email
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(request_data['sender_email'], request_data['sender_password'])
+        text = msg.as_string()
+        server.sendmail(request_data['sender_email'], request_data['receiver_email'], text)
+        server.quit()
+        return JSONResponse(content={"message": "Email sent successfully!"}, status_code=status.HTTP_200_OK)
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
+    except smtplib.SMTPRecipientsRefused:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Recipient email address refused.")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to send email. Error: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+

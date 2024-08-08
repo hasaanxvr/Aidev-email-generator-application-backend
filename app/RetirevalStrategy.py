@@ -50,6 +50,7 @@ class NameCompanyDataRetrievalStrategy(UserDataRetrievalStrategy):
             'location': self.location,
             'title': self.title,
             'last_name': self.last_name,
+            'enrich_profile': 'enrich' 
         }
         response = requests.get(api_endpoint,
                                 params=params,
@@ -59,4 +60,4 @@ class NameCompanyDataRetrievalStrategy(UserDataRetrievalStrategy):
             return None
         
         data = json.dumps(response.json(), indent=4)
-        return data['person']
+        return data

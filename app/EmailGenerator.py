@@ -30,9 +30,10 @@ class EmailGenerator:
     
         
     def generate_email(self) ->str:
-        linkedin_user_data = self.data_retrieval_strategy.get_user_data()
+        self.linkedin_user_data = self.data_retrieval_strategy.get_user_data()
         
-        if linkedin_user_data is not None:
+        
+        if self.linkedin_user_data is not None:
             sample_emails: list[str] = self.email_reader.fetch_data_from_selective_documents(self.selected_emails, self.username)
             company_documents: list[str] = self.document_reader.fetch_data_from_selective_documents(self.selected_documents, self.username)
             
@@ -53,7 +54,7 @@ class EmailGenerator:
 
             # Addition of linkedin data
             self.user_prompt += 'THE DATA OF THE PERSON YOU ARE TARGETTING IN JSON FORMAT: /n'
-            self.user_prompt += linkedin_user_data
+            self.user_prompt += self.linkedin_user_data
 
 
             messages = [
