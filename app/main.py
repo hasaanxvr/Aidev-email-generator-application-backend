@@ -1,12 +1,13 @@
 import os
-import sqlite3
+import io
 import requests
 import json
 import smtplib
+import pandas as pd
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from routers import document, email
@@ -16,10 +17,12 @@ from schemas.SignupRequest import SignupRequest
 from schemas.LoginRequest import LoginRequest
 from schemas.FindEmailRequest import FindEmailRequest
 from schemas.SendEmailRequest import SendEmailRequest
+from schemas.FindPerson import FindPersonByNameAndOrg, FindPersonByEmail
+from schemas.BulkEmailGenerationRequest import BulkEmailGenerationRequest
 from config import DATABASE_NAME, FILE_STORAGE_PATH
 from db.Database import MongoDatabase
 from core.security import create_jwt_token, get_current_user
-from RetirevalStrategy import LinkedInDataRetrievalStrategy, NameCompanyDataRetrievalStrategy
+from RetirevalStrategy import LinkedInDataRetrievalStrategy, NameCompanyDataRetrievalStrategy, EmailDataRetrievalStrategy
 
 
 db_handler = MongoDatabase()
@@ -55,6 +58,53 @@ def get_email_history(current_user: dict = Depends(get_current_user)) -> JSONRes
     email_history = db_handler.fetch_emails(username)
     
     return JSONResponse(status_code=200, content=email_history)
+
+
+@app.post('/find-person/email')
+def find_person_by_email(find_person_request: FindPersonByEmail):
+    
+    request_data: dict = find_person_request.dict()
+    retrieval_handler = EmailDataRetrievalStrategy(request_data['email'])
+    
+    data: str = retrieval_handler.get_user_data()
+    data: dict = json.loads(data)
+    
+    return_data = {
+        'url': data['linkedin_profile_url'],
+        'similarity_score': data['similarity_score']
+    }
+
+    
+    return JSONResponse(content=return_data, status_code=200)
+
+
+@app.post('/find-person/name-and-org')
+def find_person_by_name_and_org(find_person_request: FindPersonByNameAndOrg, current_user: dict = Depends(get_current_user)) -> JSONResponse:
+    request_data: dict = find_person_request.dict()
+
+    retrieval_handler = NameCompanyDataRetrievalStrategy(request_data['first_name'], request_data['company'], request_data['last_name'], request_data['location'], request_data['title'], enrich_profile='skip')
+    
+    data = retrieval_handler.get_user_data()
+    data = json.loads(data)
+    #data =  {
+    #"url": "https://pk.linkedin.com/in/saad-waseem-aab48a210",
+    #"name_similarity_score": 1.0,
+    #"company_similarity_score": 1.0,
+    #"title_similarity_score": 0.7,
+    #"location_similarity_score": 0.0
+    #}
+    
+    return JSONResponse(content=data, status_code=200)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -117,7 +167,7 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
     email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
     email = email_generator.generate_email()
     
-    
+    email_data = json.loads(email)
     if email == -1:
         raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
     
@@ -127,7 +177,8 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
         'user_prompt': request_data['user_prompt'],
         'selected_emails': request_data['selected_emails'],
         'selected_documents': request_data['selected_documents'],
-        'generated_email': email,
+        'email_body': email_data['body'],
+        'email_subject':email_data['subject'],
         'username': username,
         'time': datetime.now().isoformat()
     }
@@ -141,18 +192,63 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
     
     db_handler.insert_email(data)
     db_handler.insert_person(person_data)
-
     
     
     response_data = {
         'message': 'Email Generated Successfully!',
         'generated_email': email,
         'linkedinurl': person_data['url']
-
+        #'linkedinurl': 'https://www.linkedin.com/in/williamhgates'
     }
+    
+    
     
     print(response_data)
     return JSONResponse(status_code=200, content=response_data)
+
+"""
+
+    email =  
+    Subject: Enhance Your Legal Outreach with TROUSSE MEDIA
+
+    Dear Mr. Gates,
+
+    I hope this message finds you well. Given your esteemed role as Co-chair at the Bill & Melinda Gates Foundation and your influential presence across various sectors, I believe there is an exceptional opportunity for us to collaborate that aligns with your visionary commitment to impact.
+
+    TROUSSE MEDIA, the leading legal news platform in Québec, offers an unparalleled gateway to the heart of the legal community, including top attorneys, law firms, and corporate legal teams from organizations like Norton Rose and Fasken Martineau, as well as legal professionals from major corporations such as Bell and Bombardier. With over 156,091 unique visitors monthly, our platform ensures significant exposure and engagement within this niche yet influential group.
+
+    Given your foundation's initiatives that intersect with various legal aspects, leveraging TROUSSE MEDIA could significantly enhance your outreach and engagement with key legal stakeholders. Here’s how we can help:
+
+    1. **Content-Driven Visibility**: Our 'Publicité de Contenu' allows you to present rich, engaging content that highlights the foundation’s initiatives and positions it as a thought leader in the legal facets of philanthropy. Formats range from concise career advice to in-depth interviews and feature reports, providing a tailored approach to suit your strategic communication needs.
+
+    2. **Targeted Advertising**: With a range of advertising options including banners and dedicated web pages, your message stays visible across our platform, consistently reaching well-educated professionals, 57% of whom earn over $100k and are key decision-makers within their organizations.
+
+    3. **Social Media Amplification**: Boost your campaigns through our strong social media presence with over 46,894 followers across platforms like LinkedIn, Facebook, and Twitter, ensuring your message resonates well beyond the immediate readership.
+
+    4. **Customizable Campaigns**: Whether it’s a short-term awareness campaign or a long-term strategic partnership, our flexible advertising solutions like the dedicated page can be tailored to meet your foundation’s specific objectives, ensuring optimal engagement and impact.
+
+    Mr. Gates, collaborating with TROUSSE MEDIA means placing your trust in a partner that is deeply embedded in the Quebec legal community. I would be delighted to discuss how we can tailor our platforms and services to best support the goals of the Bill & Melinda Gates Foundation.
+
+    Please let me know a convenient time for us to discuss this further. I am looking forward to the opportunity of working together to make a meaningful impact.
+
+    Warm regards,
+
+    [Your Name]
+    [Your Position]
+    TROUSSE MEDIA
+    [Contact Information]
+    [Website URL]
+    
+    
+    response_data = {
+        'message': 'Email Generated Successfully!',
+        'generated_email': email,
+        #'linkedinurl': person_data['url']
+        'linkedinurl': 'https://www.linkedin.com/in/williamhgates'
+    }
+    """
+    
+    
 
 
 
@@ -219,6 +315,13 @@ def find_email(request_data: FindEmailRequest, current_user: dict = Depends(get_
         return JSONResponse(content=response_data, status_code=200)
     else:
         return JSONResponse(content={"error": "Failed to fetch email"}, status_code=response.status_code)
+    
+    #data = {
+    #    'emails': ['hasaan1108@gmail.com', 'l191011@lhr.nu.edu.pk' ],
+    #    'invalid_emails': ['fakeemail@something.com']
+    #}
+    
+    #return JSONResponse(content=data, status_code=200)
 
     
 
@@ -249,6 +352,112 @@ def send_email(request_data: SendEmailRequest, current_user: dict = Depends(get_
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Recipient email address refused.")
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to send email. Error: {str(e)}")
+
+
+
+@app.post('/api/bulk-search/upload')
+async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+    
+    try:
+        contents = await file.read()  
+        df = pd.read_csv(io.StringIO(contents.decode("utf-8")), header=None) 
+        
+        email_list = df[0].tolist()
+        
+        unmatched_emails = []
+        matched_emails = {}
+        
+        #for email in email_list:
+        #    retrieval_handler = EmailDataRetrievalStrategy(email)
+    
+        #    data: str = retrieval_handler.get_user_data()
+        #    data: dict = json.loads(data)
+            
+        #    if data['url'] is None:
+        #        unmatched_emails.append(email)
+        #    else:
+        #        matched_emails[email] = data['url']
+                
+            
+        
+        # Dummy data
+        matched_emails = {
+            'example@afs.com': 'https://linkedin.com/in/example',
+            'bhenk@shenk.com': 'https://linkedin.com/in/bhenkshenk'
+        }
+        
+        unmatched_emails = [
+            'nomatch@example.com',
+            'notfound@shenk.com'
+        ]
+
+        return JSONResponse(status_code=200, content={
+            "detail": "CSV uploaded and processed successfully", 
+            "matched": matched_emails,
+            "unmatched": unmatched_emails
+        })
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="There was an error processing the file")
+
+
+
+@app.post('/bulk-email-generation/')
+def generate_bulk_emails(request_data: BulkEmailGenerationRequest, current_user: dict = Depends(get_current_user)):
+    request_data = request_data.dict()
+    
+    username = current_user['username']
+    
+    generated_emails = []
+    
+    #for url in request_data['linkedin_url_list']:
+    #    retrieval_strategy = LinkedInDataRetrievalStrategy(request_data['linkedin_url'])
+    #    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
+    #    email = email_generator.generate_email()
+        
+    #    email_data = json.loads(email)
+        
+    #    if email == -1:
+    #        raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
+        
+        
+    #    data = {
+    #        'linkedinurl': request_data['linkedin_url'],
+    #        'user_prompt': request_data['user_prompt'],
+    #        'selected_emails': request_data['selected_emails'],
+    #        'selected_documents': request_data['selected_documents'],
+    #        'email_body': email_data['body'],
+    #        'email_subject':email_data['subject'],
+    #        'username': username,
+    #        'time': datetime.now().isoformat()
+    #    }
+        
+        
+    #    person_data = email_generator.linkedin_user_data
+    #    person_data = json.loads(person_data)
+    #    person_data['url'] = request_data['linkedin_url']
+        
+        
+        
+    #    db_handler.insert_email(data)
+    #    db_handler.insert_person(person_data)
+    
+    dummy_emails = []
+        
+    for url in request_data['linkedin_url_list']:
+        # Simulating email generation process with dummy data
+        dummy_email_data = {
+            url: {
+                'subject': f"Dummy Subject for {url}",
+                'body': f"Dear [Name],\n\nThis is a dummy email body generated for {url}.\n\nBest regards,\n{username}",
+                'email_address': f"dummyemail{username}@example.com"
+            }
+        }
+        dummy_emails.append(dummy_email_data)   
+        
+    return JSONResponse(content=dummy_emails, status_code=200)
 
 
 if __name__ == "__main__":

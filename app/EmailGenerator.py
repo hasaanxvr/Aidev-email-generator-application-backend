@@ -67,6 +67,14 @@ class EmailGenerator:
                 You use the information of the person provided to you and link it to the information from company docs to create a highly personalized email,
                 that highlights how the person can use the services/products of the company.
                 You make sure to link the product/services of the company to the data of the person.
+                RETURN THE EMAIL as a JSON STRING having 2 parts. 1. Subject and 2. Body.
+                STRICTLY RETURN A JSON STRING THAT CAN BE CONVERTED INTO DICTIONARY in both Python and JS:
+                
+                SAMPLE RESPONSE:
+                {
+                    "subject": "this is a sample email subject",
+                    "body": "this is a sample body"
+                }
                 """,
             ),
             ("human", f"{self.user_prompt}"),

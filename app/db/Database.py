@@ -128,11 +128,11 @@ class SqliteDatabase(Database):
 class MongoDatabase(Database):
     def __init__(self):
         self.connection_string = 'mongodb+srv://admin:admin@email-generation-test.h6h63hm.mongodb.net/email-generation?retryWrites=true&w=majority&appName=email-generation-test'
-        
+        self.client = MongoClient(self.connection_string)
     def login_valid(self, username: str, password: str) -> bool:
         try:
-            client = MongoClient(self.connection_string)
-            db = client['email-generation']
+            #client = MongoClient(self.connection_string)
+            db = self.client['email-generation']
             collection = db['users']
             query = {'username': username}
             
@@ -151,8 +151,8 @@ class MongoDatabase(Database):
         
     def username_exists(self, username: str) -> bool:
         try:
-            client = MongoClient(self.connection_string)
-            db = client['email-generation']
+            #client = MongoClient(self.connection_string)
+            db = self.client['email-generation']
             collection = db['users']
             
             query = {'username': username}
@@ -169,8 +169,8 @@ class MongoDatabase(Database):
             
     def insert_user(self, username: str, password: str, first_name: str, last_name: str) -> bool:
         try:
-            client = MongoClient(self.connection_string)
-            db = client['email-generation']
+            #client = MongoClient(self.connection_string)
+            db = self.client['email-generation']
             collection = db['users']
             
             if self.username_exists(username):
@@ -197,8 +197,8 @@ class MongoDatabase(Database):
     
     def insert_email(self, data: dict):
         try:
-            client = MongoClient(self.connection_string)
-            db = client['email-generation']
+            #client = MongoClient(self.connection_string)
+            db = self.client['email-generation']
             collection = db['email-history']
             
             collection.insert_one(data)
@@ -213,8 +213,8 @@ class MongoDatabase(Database):
             
     def insert_person(self, data: dict):
         try:
-            client = MongoClient(self.connection_string)
-            db = client['email-generation']
+            #client = MongoClient(self.connection_string)
+            db = self.client['email-generation']
             collection = db['person-data']
             
             collection.insert_one(data)
@@ -229,8 +229,8 @@ class MongoDatabase(Database):
     
     def fetch_emails(self, username: str):
         try:
-            client = MongoClient(self.connection_string)
-            db = client['email-generation']
+            #client = MongoClient(self.connection_string)
+            db = self.client['email-generation']
             collection = db['email-history']
 
             query = {'username': username}
@@ -240,7 +240,8 @@ class MongoDatabase(Database):
                 'user_prompt': 1,
                 'selected_documents': 1,
                 'selected_emails': 1,
-                'generated_email': 1,
+                'email_subject': 1,
+                'email_body': 1,
                 '_id': 0  # Exclude the MongoDB _id field from the result
             })
 
@@ -252,7 +253,8 @@ class MongoDatabase(Database):
                     'userPrompt': doc.get('user_prompt'),
                     'selectedDocuments': doc.get('selected_documents'),
                     'selectedEmails': doc.get('selected_emails'),
-                    'generatedEmail': doc.get('generated_email')
+                    'generatedEmailSubject': doc.get('email_subject'),
+                    'generatedEmailBody': doc.get('email_body')
                 })
 
             return email_history

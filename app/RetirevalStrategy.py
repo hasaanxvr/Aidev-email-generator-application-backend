@@ -31,12 +31,13 @@ class LinkedInDataRetrievalStrategy(UserDataRetrievalStrategy):
     
 
 class NameCompanyDataRetrievalStrategy(UserDataRetrievalStrategy):
-    def __init__(self, first_name: str, company: str, last_name: str, location: str, title: str ):
+    def __init__(self, first_name: str, company: str, last_name: str, location: str, title: str, enrich_profile='enrich' ):
         self.first_name = first_name
         self.company = company
         self.last_name = last_name
         self.location = location
         self.title = title
+        self.enrich_profile=enrich_profile
         self.api_key = 'LOkC-q7SjAV8ihl9DC7bCQ'
         
     def get_user_data(self):
@@ -50,8 +51,34 @@ class NameCompanyDataRetrievalStrategy(UserDataRetrievalStrategy):
             'location': self.location,
             'title': self.title,
             'last_name': self.last_name,
-            'enrich_profile': 'enrich' 
+            'enrich_profile': self.enrich_profile
         }
+        response = requests.get(api_endpoint,
+                                params=params,
+                                headers=headers)
+        
+        if response.status_code != 200:
+            return None
+        
+        data = json.dumps(response.json(), indent=4)
+        return data
+    
+    
+
+class EmailDataRetrievalStrategy(UserDataRetrievalStrategy):
+    
+    def __init__(self, email:str):
+        self.email = email
+        self.api_key = 'LOkC-q7SjAV8ihl9DC7bCQ'
+    
+    def get_user_data(self):
+        headers = {'Authorization': 'Bearer ' + self.api_key}
+        api_endpoint = 'https://nubela.co/proxycurl/api/linkedin/profile/resolve/email'
+        params = {
+        'email': self.email,
+        'lookup_depth': 'deep',
+        }
+        
         response = requests.get(api_endpoint,
                                 params=params,
                                 headers=headers)
