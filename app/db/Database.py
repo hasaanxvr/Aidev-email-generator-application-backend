@@ -1,4 +1,5 @@
 import sqlite3
+import bcrypt
 from datetime import datetime
 from fastapi import HTTPException
 from pymongo import MongoClient, errors
@@ -129,16 +130,22 @@ class MongoDatabase(Database):
     def __init__(self):
         self.connection_string = 'mongodb+srv://admin:admin@email-generation-test.h6h63hm.mongodb.net/email-generation?retryWrites=true&w=majority&appName=email-generation-test'
         self.client = MongoClient(self.connection_string)
+        
+    def hash_password(self, password: str) -> str:
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
     def login_valid(self, username: str, password: str) -> bool:
         try:
-            #client = MongoClient(self.connection_string)
             db = self.client['email-generation']
             collection = db['users']
             query = {'username': username}
             
             user = collection.find_one(query)
             
-            if user and user['password'] == password:
+            if user and self.verify_password(password, user['password']):
                 return True
             else:
                 return False
@@ -151,14 +158,10 @@ class MongoDatabase(Database):
         
     def username_exists(self, username: str) -> bool:
         try:
-            #client = MongoClient(self.connection_string)
             db = self.client['email-generation']
             collection = db['users']
-            
             query = {'username': username}
-            
             user = collection.find_one(query)
-            
             return user is not None
         except errors.ConnectionFailure as e:
             print(f"Could not connect to MongoDB: {e}")
@@ -169,7 +172,6 @@ class MongoDatabase(Database):
             
     def insert_user(self, username: str, password: str, first_name: str, last_name: str) -> bool:
         try:
-            #client = MongoClient(self.connection_string)
             db = self.client['email-generation']
             collection = db['users']
             
@@ -177,9 +179,11 @@ class MongoDatabase(Database):
                 print("Username already exists.")
                 return False
             
+            hashed_password = self.hash_password(password)
+            
             user = {
                 'username': username,
-                'password': password,
+                'password': hashed_password,
                 'first_name': first_name,
                 'last_name': last_name
             }
@@ -191,8 +195,7 @@ class MongoDatabase(Database):
             return False
         except errors.OperationFailure as e:
             print(f"Operation failed: {e}")
-            return False
-        
+            return False  
         
     
     def insert_email(self, data: dict):

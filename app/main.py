@@ -5,6 +5,7 @@ import json
 import smtplib
 import pandas as pd
 import shutil
+import bcrypt
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -252,29 +253,8 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
     }
     """
     
-    
 
 
-
-
-@app.post('/signup')
-def signup(signup_request: SignupRequest) -> JSONResponse:
-    request_data = signup_request.dict()
-    
-    if db_handler.username_exists(request_data['username']):
-        raise HTTPException(status_code=409, detail='The username is already taken!')        
-    
-    
-    db_handler.insert_user(request_data['username'],request_data['password'], request_data['first_name'],  request_data['last_name'])
-    
-    username = request_data['username']
-    
-    # Make relevant data stores
-    os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
-    
-    
-    return JSONResponse(status_code=200, content=request_data)
-    
 
 @app.post('/login')
 def login(login_request: LoginRequest) -> JSONResponse:
@@ -293,8 +273,25 @@ def login(login_request: LoginRequest) -> JSONResponse:
     
     response = JSONResponse(status_code=200, content=return_data)
     
-    
     return response
+
+@app.post('/signup')
+def signup(signup_request: SignupRequest) -> JSONResponse:
+    request_data = signup_request.dict()
+    
+    if db_handler.username_exists(request_data['username']):
+        raise HTTPException(status_code=409, detail='The username is already taken!')        
+    
+    success = db_handler.insert_user(request_data['username'], request_data['password'], request_data['first_name'], request_data['last_name'])
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="An error occurred during signup.")
+
+    username = request_data['username']
+    
+    os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
+    
+    return JSONResponse(status_code=200, content={"message": "Signup successful!"})
 
 
 @app.post('/find-email')
