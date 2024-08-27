@@ -9,6 +9,7 @@ class DocumentReader:
     def __init__(self, documents_folder_path):
         
         self.documents_folder_path = documents_folder_path
+
         
     def _read_pdf(self, file_path: str) -> str:
         """ Reads a pdf file and returns the text as a string

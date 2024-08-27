@@ -9,15 +9,15 @@ from RetirevalStrategy import LinkedInDataRetrievalStrategy, NameCompanyDataRetr
 
 
 class EmailGenerator:
-    def __init__(self,user_prompt: str, selected_documents: list[str], selected_emails: list[str], retrieval_strategy:UserDataRetrievalStrategy, model: str ='gpt-4-turbo', username = ''):
+    def __init__(self,user_prompt: str, selected_documents: list[str], selected_emails: list[str], retrieval_strategy:UserDataRetrievalStrategy, model: str ='gpt-4-turbo', username = '', company_name=''):
         
         self.user_prompt: str = user_prompt
         self.selected_documents: list[str] = selected_documents
         self.selected_emails: list[str] = selected_emails
         
         # Defining the document reader objects for fetching emails and documents
-        self.email_reader = DocumentReader(documents_folder_path=f'file_storage/{username}/sample_emails')
-        self.document_reader = DocumentReader(documents_folder_path=f'file_storage/{username}/company_documents')
+        self.email_reader = DocumentReader(documents_folder_path=f'file_storage/{company_name}/sample_emails')
+        self.document_reader = DocumentReader(documents_folder_path=f'file_storage/{company_name}/company_documents')
 
         self.llm= ChatOpenAI(model=model)
         

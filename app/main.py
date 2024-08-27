@@ -4,6 +4,7 @@ import requests
 import json
 import smtplib
 import pandas as pd
+import shutil
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -115,7 +116,7 @@ def generate_email_name(email_generation_request: NameEmailGenerationRequest, cu
     username = current_user['username']
     
     retrieval_strategy = NameCompanyDataRetrievalStrategy(request_data['first_name'], request_data['company'], request_data['last_name'], request_data['location'], request_data['title'])
-    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
+    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username, company_name=request_data['company_name'])
     email = email_generator.generate_email()
     
     if email == -1:
@@ -369,20 +370,21 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
         unmatched_emails = []
         matched_emails = {}
         
-        #for email in email_list:
-        #    retrieval_handler = EmailDataRetrievalStrategy(email)
+        for email in email_list:
+            retrieval_handler = EmailDataRetrievalStrategy(email)
     
-        #    data: str = retrieval_handler.get_user_data()
-        #    data: dict = json.loads(data)
+            data: str = retrieval_handler.get_user_data()
+            data: dict = json.loads(data)
             
-        #    if data['url'] is None:
-        #        unmatched_emails.append(email)
-        #    else:
-        #        matched_emails[email] = data['url']
+            if data['url'] is None:
+                unmatched_emails.append(email)
+            else:
+                matched_emails[email] = data['url']
                 
             
         
-        # Dummy data
+         #Dummy data
+        """
         matched_emails = {
             'example@afs.com': 'https://linkedin.com/in/example',
             'bhenk@shenk.com': 'https://linkedin.com/in/bhenkshenk'
@@ -392,7 +394,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
             'nomatch@example.com',
             'notfound@shenk.com'
         ]
-
+        """
         return JSONResponse(status_code=200, content={
             "detail": "CSV uploaded and processed successfully", 
             "matched": matched_emails,
@@ -412,54 +414,128 @@ def generate_bulk_emails(request_data: BulkEmailGenerationRequest, current_user:
     
     generated_emails = []
     
-    #for url in request_data['linkedin_url_list']:
-    #    retrieval_strategy = LinkedInDataRetrievalStrategy(request_data['linkedin_url'])
-    #    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
-    #    email = email_generator.generate_email()
+    # Iterate through the dictionary of {url: email}
+    for url, email in request_data['linkedin_url_dict'].items():
+        retrieval_strategy = LinkedInDataRetrievalStrategy(url)
+        email_generator = EmailGenerator(
+            request_data['user_prompt'], 
+            request_data['selected_documents'], 
+            request_data['selected_emails'], 
+            retrieval_strategy, 
+            username=username, 
+            company_name=request_data['company_name']
+        )
+
+        email_content = email_generator.generate_email()
+    
+        email_data = json.loads(email_content)
         
-    #    email_data = json.loads(email)
+        email_entry = {  # Create a dictionary for the current URL
+            url: {
+                'subject': email_data['subject'],
+                'body': email_data['body'],
+                'email_address': email  # Use the provided email
+            }
+        }
         
-    #    if email == -1:
-    #        raise HTTPException(status_code=505, detail='Could not fetch data of the person from LinkedIn')
+        generated_emails.append(email_entry)     
+    
         
-        
-    #    data = {
-    #        'linkedinurl': request_data['linkedin_url'],
-    #        'user_prompt': request_data['user_prompt'],
-    #        'selected_emails': request_data['selected_emails'],
-    #        'selected_documents': request_data['selected_documents'],
-    #        'email_body': email_data['body'],
-    #        'email_subject':email_data['subject'],
-    #        'username': username,
-    #        'time': datetime.now().isoformat()
-    #    }
+        #data = {
+        #    'linkedinurl': request_data['linkedin_url'],
+        #    'user_prompt': request_data['user_prompt'],
+        #    'selected_emails': request_data['selected_emails'],
+        #    'selected_documents': request_data['selected_documents'],
+        #    'email_body': email_data['body'],
+        #    'email_subject':email_data['subject'],
+        #    'username': username,
+        #    'time': datetime.now().isoformat()
+        #}
         
         
     #    person_data = email_generator.linkedin_user_data
     #    person_data = json.loads(person_data)
     #    person_data['url'] = request_data['linkedin_url']
         
-        
-        
     #    db_handler.insert_email(data)
     #    db_handler.insert_person(person_data)
     
+    
     dummy_emails = []
         
-    for url in request_data['linkedin_url_list']:
-        # Simulating email generation process with dummy data
+    for url, email in request_data['linkedin_url_dict'].items():
+    # Simulating email generation process with dummy data
         dummy_email_data = {
             url: {
                 'subject': f"Dummy Subject for {url}",
                 'body': f"Dear [Name],\n\nThis is a dummy email body generated for {url}.\n\nBest regards,\n{username}",
-                'email_address': f"dummyemail{username}@example.com"
+                'email_address': email  # Use the email provided in the request data
             }
         }
-        dummy_emails.append(dummy_email_data)   
+    dummy_emails.append(dummy_email_data)
         
-    return JSONResponse(content=dummy_emails, status_code=200)
+    return JSONResponse(content=generated_emails, status_code=200)
 
 
+
+@app.get('/document-info')
+def get_all_emails(current_user: dict = Depends(get_current_user)):
+    companies = os.listdir('file_storage')
+    data = {}
+    for company in companies:
+        temp_dict = {}
+        temp_dict['sample_emails'] = os.listdir(f'file_storage/{company}/company_documents')
+        temp_dict['company_documents'] = os.listdir(f'file_storage/{company}/company_documents')
+        data[company] = temp_dict
+    
+    return JSONResponse(status_code=200, content=data) 
+
+
+@app.get(f'/company-names')
+def get_company_names(current_user: dict = Depends(get_current_user)):
+    companies = os.listdir('file_storage')
+
+    data = {'companies': companies}
+    
+    return JSONResponse(content=data, status_code=200)
+
+
+from pydantic import BaseModel
+class AddCompanyRequest(BaseModel):
+    company_name: str
+
+@app.post('/api/companies/add')
+def add_company(request: AddCompanyRequest, current_user: dict = Depends(get_current_user)):
+    company_name = request.company_name
+    company_path = f'file_storage/{company_name}'
+    
+    if os.path.exists(company_path):
+        raise HTTPException(status_code=400, detail="Company already exists")
+    
+    try:
+        os.makedirs(company_path, exist_ok=True)
+        os.makedirs(f'{company_path}/company_documents', exist_ok=True)
+        os.makedirs(f'{company_path}/sample_emails', exist_ok=True)
+        return JSONResponse(status_code=200, content={"message": f"Company '{company_name}' added successfully"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating company: {str(e)}")
+
+
+@app.delete('/api/companies/delete/{company_name}')
+def delete_company(company_name: str, current_user: dict = Depends(get_current_user)):
+    company_path = f'file_storage/{company_name}'
+    
+    if not os.path.exists(company_path):
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    try:
+        shutil.rmtree(company_path)
+        return JSONResponse(status_code=200, content={"message": f"Company '{company_name}' deleted successfully"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting company: {str(e)}")
+
+
+    
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

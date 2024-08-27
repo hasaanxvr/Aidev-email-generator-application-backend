@@ -9,12 +9,11 @@ router = APIRouter()
 
 
 #This just returns the name of the documents
-@router.get('/documents')
-def get_documents(current_user: dict = Depends(get_current_user)) -> JSONResponse:
+@router.get('/documents/company/{company_name}')
+def get_documents(company_name: str, current_user: dict = Depends(get_current_user)) -> JSONResponse:
 
     try:
-        username = current_user['username']
-        document_names = os.listdir(f'file_storage/{username}/company_documents')
+        document_names = os.listdir(f'file_storage/{company_name}/company_documents')
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail='Could not find the documents.')
 
@@ -38,10 +37,9 @@ def get_document(document_name: str, current_user: dict = Depends(get_current_us
 
     
 
-@router.post("/documents/upload")
-async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
-    username = current_user['username']
-    upload_dir = Path(f"file_storage/{username}/company_documents")
+@router.post("/documents/upload/{company_name}")
+async def upload_documents(company_name: str, files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
+    upload_dir = Path(f"file_storage/{company_name}/company_documents")
     upload_dir.mkdir(parents=True, exist_ok=True)
     
     file_names = os.listdir(upload_dir)
@@ -93,12 +91,12 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
 
     return JSONResponse(content=response, status_code=status_code)
 
-@router.delete("/documents/delete")
-async def delete_document(data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
+@router.delete("/documents/delete/{company_name}")
+async def delete_document(company_name: str, data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     files = data['files']
     username = current_user['username']
     for file in files:
-        file_path: str = f'file_storage/{username}/company_documents/{file}'
+        file_path: str = f'file_storage/{company_name}/company_documents/{file}'
         
         try:
             os.remove(file_path)

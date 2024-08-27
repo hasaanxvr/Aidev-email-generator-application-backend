@@ -8,11 +8,16 @@ from core.security import get_current_user
 router = APIRouter()
 
 # This just returns the names of the emails
-@router.get('/emails')
-def get_documents(current_user: dict = Depends(get_current_user)) -> dict:
+
+  
+
+
+
+@router.get('/emails/company/{company_name}')
+def get_emails(company_name: str, current_user: dict = Depends(get_current_user)) -> dict:
     try:
         username = current_user['username']
-        sample_emails = os.listdir(f'file_storage/{username}/sample_emails')
+        sample_emails = os.listdir(f'file_storage/{company_name}/sample_emails')
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail='Could not find the sample emails.')
 
@@ -36,10 +41,10 @@ def get_document(email_name: str, current_user: dict = Depends(get_current_user)
 
 
 
-@router.post("/emails/upload")
-async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
+@router.post("/emails/upload/{company_name}")
+async def upload_documents(company_name: str, files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
     username = current_user['username']
-    upload_dir = Path(f"file_storage/{username}/sample_emails")
+    upload_dir = Path(f"file_storage/{company_name}/sample_emails")
     upload_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
     
     file_names = os.listdir(upload_dir)
@@ -89,13 +94,13 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
 
     return JSONResponse(content=response, status_code=status_code)
 
-@router.delete("/emails/delete")
-async def delete_email(data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
+@router.delete("/emails/delete/{company_name}")
+async def delete_email(company_name: str, data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     files = data['files']
     username = current_user['username']
     
     for file in files:
-        file_path: str = f'file_storage/{username}/sample_emails/{file}'
+        file_path: str = f'file_storage/{company_name}/sample_emails/{file}'
         
         try:
             os.remove(file_path)
