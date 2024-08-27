@@ -17,7 +17,7 @@ router = APIRouter()
 def get_emails(company_name: str, current_user: dict = Depends(get_current_user)) -> dict:
     try:
         username = current_user['username']
-        sample_emails = os.listdir(f'file_storage/{company_name}/sample_emails')
+        sample_emails = os.listdir(f'file_storage/{username}/{company_name}/sample_emails')
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail='Could not find the sample emails.')
 
@@ -44,7 +44,7 @@ def get_document(email_name: str, current_user: dict = Depends(get_current_user)
 @router.post("/emails/upload/{company_name}")
 async def upload_documents(company_name: str, files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
     username = current_user['username']
-    upload_dir = Path(f"file_storage/{company_name}/sample_emails")
+    upload_dir = Path(f"file_storage/{username}/{company_name}/sample_emails")
     upload_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
     
     file_names = os.listdir(upload_dir)
@@ -100,7 +100,7 @@ async def delete_email(company_name: str, data: dict, current_user: dict = Depen
     username = current_user['username']
     
     for file in files:
-        file_path: str = f'file_storage/{company_name}/sample_emails/{file}'
+        file_path: str = f'file_storage/{username}/{company_name}/sample_emails/{file}'
         
         try:
             os.remove(file_path)

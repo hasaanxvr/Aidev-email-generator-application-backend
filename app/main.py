@@ -112,10 +112,13 @@ def find_person_by_name_and_org(find_person_request: FindPersonByNameAndOrg, cur
 @app.post('/generate-email/name')
 def generate_email_name(email_generation_request: NameEmailGenerationRequest, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     
+
+    
     request_data: dict = email_generation_request.dict()
     username = current_user['username']
     
     retrieval_strategy = NameCompanyDataRetrievalStrategy(request_data['first_name'], request_data['company'], request_data['last_name'], request_data['location'], request_data['title'])
+    
     email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username, company_name=request_data['company_name'])
     email = email_generator.generate_email()
     
@@ -165,7 +168,7 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
     username = current_user['username']
     
     retrieval_strategy = LinkedInDataRetrievalStrategy(request_data['linkedin_url'])
-    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username)
+    email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username, company_name=request_data['company_name'])
     email = email_generator.generate_email()
     
     email_data = json.loads(email)
@@ -268,8 +271,6 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
     
     # Make relevant data stores
     os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
-    os.makedirs(f'{FILE_STORAGE_PATH}/{username}/company_documents', exist_ok=True)
-    os.makedirs(f'{FILE_STORAGE_PATH}/{username}/sample_emails', exist_ok=True)
     
     
     return JSONResponse(status_code=200, content=request_data)
@@ -441,24 +442,24 @@ def generate_bulk_emails(request_data: BulkEmailGenerationRequest, current_user:
         generated_emails.append(email_entry)     
     
         
-        #data = {
-        #    'linkedinurl': request_data['linkedin_url'],
-        #    'user_prompt': request_data['user_prompt'],
-        #    'selected_emails': request_data['selected_emails'],
-        #    'selected_documents': request_data['selected_documents'],
-        #    'email_body': email_data['body'],
-        #    'email_subject':email_data['subject'],
-        #    'username': username,
-        #    'time': datetime.now().isoformat()
-        #}
+        data = {
+            'linkedinurl': url,
+            'user_prompt': request_data['user_prompt'],
+            'selected_emails': request_data['selected_emails'],
+            'selected_documents': request_data['selected_documents'],
+            'email_body': email_data['body'],
+            'email_subject':email_data['subject'],
+            'username': username,
+            'time': datetime.now().isoformat()
+        }
         
         
-    #    person_data = email_generator.linkedin_user_data
-    #    person_data = json.loads(person_data)
-    #    person_data['url'] = request_data['linkedin_url']
+        person_data = email_generator.linkedin_user_data
+        person_data = json.loads(person_data)
+        person_data['url'] = url
         
-    #    db_handler.insert_email(data)
-    #    db_handler.insert_person(person_data)
+        db_handler.insert_email(data)
+        db_handler.insert_person(person_data)
     
     
     dummy_emails = []
@@ -493,7 +494,9 @@ def get_all_emails(current_user: dict = Depends(get_current_user)):
 
 @app.get(f'/company-names')
 def get_company_names(current_user: dict = Depends(get_current_user)):
-    companies = os.listdir('file_storage')
+    username = current_user['username']
+
+    companies = os.listdir(f'file_storage/{username}')
 
     data = {'companies': companies}
     
@@ -506,8 +509,11 @@ class AddCompanyRequest(BaseModel):
 
 @app.post('/api/companies/add')
 def add_company(request: AddCompanyRequest, current_user: dict = Depends(get_current_user)):
+    
+    username = current_user['username']
     company_name = request.company_name
-    company_path = f'file_storage/{company_name}'
+    
+    company_path = f'file_storage/{username}/{company_name}'
     
     if os.path.exists(company_path):
         raise HTTPException(status_code=400, detail="Company already exists")
@@ -523,7 +529,9 @@ def add_company(request: AddCompanyRequest, current_user: dict = Depends(get_cur
 
 @app.delete('/api/companies/delete/{company_name}')
 def delete_company(company_name: str, current_user: dict = Depends(get_current_user)):
-    company_path = f'file_storage/{company_name}'
+    
+    username = current_user['username']
+    company_path = f'file_storage/{username}/{company_name}'
     
     if not os.path.exists(company_path):
         raise HTTPException(status_code=404, detail="Company not found")

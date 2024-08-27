@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class LinkedinURLEmailGenerationRequest(BaseModel):
-    linkedin_url_dict: dict
+    linkedin_url: str
     user_prompt: str
     selected_emails:  list
     selected_documents:  list
