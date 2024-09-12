@@ -5,8 +5,8 @@ import json
 import smtplib
 import pandas as pd
 import shutil
-import bcrypt
 from datetime import datetime
+from pymongo.errors import PyMongoError
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
@@ -253,9 +253,7 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
     }
     """
     
-
-
-
+    
 @app.post('/login')
 def login(login_request: LoginRequest) -> JSONResponse:
     request_data = login_request.dict()
@@ -263,7 +261,7 @@ def login(login_request: LoginRequest) -> JSONResponse:
     if not db_handler.login_valid(request_data['username'], request_data['password']):
         raise HTTPException(status_code=401, detail='INVALID Username or Password!')
 
-    access_token = create_jwt_token(request_data, 3600)
+    access_token = create_jwt_token({'username': request_data['username']}, 3600)
 
     return_data = {
         'access_token': access_token,
@@ -274,6 +272,8 @@ def login(login_request: LoginRequest) -> JSONResponse:
     response = JSONResponse(status_code=200, content=return_data)
     
     return response
+
+
 
 @app.post('/signup')
 def signup(signup_request: SignupRequest) -> JSONResponse:
