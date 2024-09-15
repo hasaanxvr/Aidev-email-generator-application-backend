@@ -6,7 +6,7 @@ from pymongo import MongoClient, errors
 
 # Parent class for Database
 class Database:
-    def login_valid(username:str, password:str):
+    def login_valid(username:str, password: str):
         raise NotImplementedError('The subclasses should implement this function!')
     
     def insert_user(username: str, password: str, first_name: str, last_name: str):
@@ -128,7 +128,7 @@ class SqliteDatabase(Database):
 # For MongoDB
 class MongoDatabase(Database):
     def __init__(self):
-        self.connection_string = 'mongodb+srv://doadmin:Ir69NU72mu15Y3l0@@db-mongodb-nyc3-ai-email-22b5feac.mongo.ondigitalocean.com/admin?tls=true&authSource=admin&replicaSet=db-mongodb-nyc3-ai-email'
+        self.connection_string = 'mongodb+srv://admin:admin@email-generation-test.h6h63hm.mongodb.net/email-generation?retryWrites=true&w=majority&appName=email-generation-test'
         self.client = MongoClient(self.connection_string)
         
     def hash_password(self, password: str) -> str:

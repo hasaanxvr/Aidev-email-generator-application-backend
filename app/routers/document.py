@@ -1,77 +1,83 @@
 import os
 from typing import List
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
-from fastapi.responses import JSONResponse, FileResponse
-from pathlib import Path
+from fastapi.responses import JSONResponse
 from core.security import get_current_user  # Assuming this function is defined for JWT validation
+from file_storage import DigitalOceanSpacesManager
 
 router = APIRouter()
 
+# Instantiate the DigitalOceanSpacesManager
+spaces_manager = DigitalOceanSpacesManager(
+    key='DO004X6LKK4NR9K4WQHP',
+    secret='b2h7TrCXohEsfPm0ejmpapqRFIUKtKCPrPLpalOHK4I',
+    region='nyc3',
+    bucket_name='spaces-bucket-ai-email'
+)
 
-#This just returns the name of the documents
+# This returns the name of the documents from DigitalOcean Spaces
 @router.get('/documents/company/{company_name}')
 def get_documents(company_name: str, current_user: dict = Depends(get_current_user)) -> JSONResponse:
-    username = current_user['username']
-
     try:
-        document_names = os.listdir(f'file_storage/{username}/{company_name}/company_documents')
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail='Could not find the documents.')
+        username = current_user['username']
+        document_names = spaces_manager.list_sample_documents(username, company_name)
+        return JSONResponse(content={'document_names': document_names}, status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not retrieve document names: {str(e)}")
 
-    return JSONResponse(content={'document_names': document_names}, status_code=200)
-
-
-@router.get('/documents/{document_name}')
-def get_document(document_name: str, current_user: dict = Depends(get_current_user)):
+# Download a specific document from DigitalOcean Spaces using a pre-signed URL
+@router.get('/documents/{company_name}/{document_name}')
+def get_document(company_name: str, document_name: str, current_user: dict = Depends(get_current_user)):
     username = current_user['username']
-    document_path = Path(f'file_storage/{username}/company_documents/{document_name}')
+    file_key = f'file-storage/{username}/{company_name}/company_documents/{document_name}'
     
-    # Check if the file exists
-    if not document_path.is_file():
-        raise HTTPException(status_code=404, detail="Document not found")
-    
-    # Try to return the file response
     try:
-        return FileResponse(path=document_path, filename=document_name)
+        # Generate a pre-signed URL for the document
+        presigned_url = spaces_manager.client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': spaces_manager.bucket_name, 'Key': file_key},
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+        return JSONResponse(content={'url': presigned_url}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error accessing the document: {str(e)}")
 
-    
-
+# Upload documents to DigitalOcean Spaces
 @router.post("/documents/upload/{company_name}")
 async def upload_documents(company_name: str, files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)) -> JSONResponse:
     username = current_user['username']
+    folder_path = f'file-storage/{username}/{company_name}/company_documents/'
+    
+    # List existing files in DigitalOcean Spaces
+    existing_files = spaces_manager.list_folders_in_folder(f'{username}/{company_name}/company_documents')
 
-    upload_dir = Path(f"file_storage/{username}/{company_name}/company_documents")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    file_names = os.listdir(upload_dir)
-    
-    # keep track of all the files with the same name that already exist
     files_that_already_exist = []
-    # keep track of all the files that were uploaded successfully
     successful_file_uploads = []
-    # keep track of all the files that were not uploaded successfully
     unsuccessful_file_uploads = []
     
     for file in files:
-        if file.filename in file_names:
+        if file.filename in existing_files:
             files_that_already_exist.append(file.filename)
             continue
-            
-        file_location = upload_dir / file.filename
+        
+        file_location = folder_path + file.filename
         
         try:
-            with file_location.open("wb") as f:
-                f.write(file.file.read())
+            # Upload the file to DigitalOcean Spaces
+            spaces_manager.client.put_object(
+                Bucket=spaces_manager.bucket_name,
+                Key=file_location,
+                Body=file.file.read()
+            )
             successful_file_uploads.append(file.filename)
-        except:
+        except Exception as e:
             unsuccessful_file_uploads.append(file.filename)
+            print(f"Error uploading {file.filename}: {e}")
 
     data = {
         'files_that_already_exist': files_that_already_exist,
         'successful_file_uploads': successful_file_uploads,
-        'unsucessful_file_uploads': unsuccessful_file_uploads
+        'unsuccessful_file_uploads': unsuccessful_file_uploads
     }
     
     if successful_file_uploads and not unsuccessful_file_uploads and not files_that_already_exist:
@@ -94,24 +100,24 @@ async def upload_documents(company_name: str, files: List[UploadFile] = File(...
 
     return JSONResponse(content=response, status_code=status_code)
 
+# Delete specific documents from DigitalOcean Spaces
 @router.delete("/documents/delete/{company_name}")
 async def delete_document(company_name: str, data: dict, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     files = data['files']
     username = current_user['username']
+    
     for file in files:
-        file_path: str = f'file_storage/{username}/{company_name}/company_documents/{file}'
+        file_key = f'file-storage/{username}/{company_name}/company_documents/{file}'
         
         try:
-            os.remove(file_path)
-            print(f"File '{file_path}' has been deleted successfully.")
-        except FileNotFoundError:
-            print(f"File '{file_path}' does not exist.")
-            raise HTTPException(status_code=404, detail='File not found')
-        except PermissionError:
-            print(f"Permission denied: Unable to delete '{file_path}'.")
-            raise HTTPException(status_code=500, detail='The server does not have permission to delete the file')
+            # Delete the file from DigitalOcean Spaces
+            spaces_manager.client.delete_object(
+                Bucket=spaces_manager.bucket_name,
+                Key=file_key
+            )
+            print(f"File '{file_key}' has been deleted successfully.")
         except Exception as e:
-            print(f"An error occurred while deleting the file: {e}")
-            raise HTTPException(status_code=500, detail='Internal Server Error')
+            print(f"Error occurred while deleting the file: {e}")
+            raise HTTPException(status_code=500, detail=f"Internal Server Error while deleting {file}")
         
-    return JSONResponse(status_code=200, content={'message': f'Deleted files successfully!'})
+    return JSONResponse(status_code=200, content={'message': 'Deleted files successfully!'})

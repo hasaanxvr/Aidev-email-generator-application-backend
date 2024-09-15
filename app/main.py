@@ -25,9 +25,17 @@ from config import DATABASE_NAME, FILE_STORAGE_PATH
 from db.Database import MongoDatabase
 from core.security import create_jwt_token, get_current_user
 from RetirevalStrategy import LinkedInDataRetrievalStrategy, NameCompanyDataRetrievalStrategy, EmailDataRetrievalStrategy
+from file_storage import DigitalOceanSpacesManager
 
 
 db_handler = MongoDatabase()
+
+spaces_manager = DigitalOceanSpacesManager(
+    key='DO004X6LKK4NR9K4WQHP',
+    secret='b2h7TrCXohEsfPm0ejmpapqRFIUKtKCPrPLpalOHK4I',
+    region='nyc3',
+    bucket_name='spaces-bucket-ai-email'
+)
 
 app = FastAPI()
 
@@ -289,7 +297,8 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
 
     username = request_data['username']
     
-    os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
+    #os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
+    spaces_manager.create_folder_in_bucket(username)
     
     return JSONResponse(status_code=200, content={"message": "Signup successful!"})
 
@@ -493,7 +502,9 @@ def get_all_emails(current_user: dict = Depends(get_current_user)):
 def get_company_names(current_user: dict = Depends(get_current_user)):
     username = current_user['username']
 
-    companies = os.listdir(f'file_storage/{username}')
+    #companies = os.listdir(f'file_storage/{username}')
+    
+    companies = spaces_manager.list_folders_in_folder(username)
 
     data = {'companies': companies}
     
@@ -510,35 +521,26 @@ def add_company(request: AddCompanyRequest, current_user: dict = Depends(get_cur
     username = current_user['username']
     company_name = request.company_name
     
-    company_path = f'file_storage/{username}/{company_name}'
-    
-    if os.path.exists(company_path):
-        raise HTTPException(status_code=400, detail="Company already exists")
     
     try:
-        os.makedirs(company_path, exist_ok=True)
-        os.makedirs(f'{company_path}/company_documents', exist_ok=True)
-        os.makedirs(f'{company_path}/sample_emails', exist_ok=True)
+        spaces_manager.create_emails_and_documents_folder(company_name, username)
         return JSONResponse(status_code=200, content={"message": f"Company '{company_name}' added successfully"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating company: {str(e)}")
+
 
 
 @app.delete('/api/companies/delete/{company_name}')
 def delete_company(company_name: str, current_user: dict = Depends(get_current_user)):
     
     username = current_user['username']
-    company_path = f'file_storage/{username}/{company_name}'
-    
-    if not os.path.exists(company_path):
-        raise HTTPException(status_code=404, detail="Company not found")
+    company_path = f'file-storage/{username}/{company_name}/'  # Ensure trailing slash
     
     try:
-        shutil.rmtree(company_path)
+        spaces_manager.delete_folder(company_path)
         return JSONResponse(status_code=200, content={"message": f"Company '{company_name}' deleted successfully"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting company: {str(e)}")
-
 
     
 if __name__ == "__main__":
