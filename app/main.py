@@ -298,7 +298,7 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
     username = request_data['username']
     
     #os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
-    spaces_manager.create_folder_in_bucket(username)
+    spaces_manager.create_folder(username)
     
     return JSONResponse(status_code=200, content={"message": "Signup successful!"})
 
