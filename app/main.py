@@ -41,7 +41,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000",
-    "https://urchin-app-7vbv4.ondigitalocean.app/"
+    "https://urchin-app-7vbv4.ondigitalocean.app"
 ]
 
 app.add_middleware(
