@@ -32,6 +32,9 @@ def get_document(company_name: str, email_name: str, current_user: dict = Depend
     file_key = f'file-storage/{username}/{company_name}/sample_emails/{email_name}'
     
     try:
+        # Log the key to debug if the file path is correct
+        print(f"File Key: {file_key}")
+        
         # Generate a pre-signed URL for the file
         presigned_url = spaces_manager.client.generate_presigned_url(
             'get_object',

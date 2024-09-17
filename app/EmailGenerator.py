@@ -16,8 +16,8 @@ class EmailGenerator:
         self.selected_emails: list[str] = selected_emails
         
         # Defining the document reader objects for fetching emails and documents
-        self.email_reader = DocumentReader(documents_folder_path=f'file_storage/{username}/{company_name}/sample_emails')
-        self.document_reader = DocumentReader(documents_folder_path=f'file_storage/{username}/{company_name}/company_documents')
+        self.email_reader = DocumentReader(documents_folder_path=f'file-storage/{username}/{company_name}/sample_emails')
+        self.document_reader = DocumentReader(documents_folder_path=f'file-storage/{username}/{company_name}/company_documents')
 
         self.llm= ChatOpenAI(model=model)
         

@@ -30,6 +30,7 @@ def get_documents(company_name: str, current_user: dict = Depends(get_current_us
 def get_document(company_name: str, document_name: str, current_user: dict = Depends(get_current_user)):
     username = current_user['username']
     file_key = f'file-storage/{username}/{company_name}/company_documents/{document_name}'
+    print(file_key)
     
     try:
         # Generate a pre-signed URL for the document
@@ -38,6 +39,7 @@ def get_document(company_name: str, document_name: str, current_user: dict = Dep
             Params={'Bucket': spaces_manager.bucket_name, 'Key': file_key},
             ExpiresIn=3600  # URL expires in 1 hour
         )
+        print(presigned_url)
         return JSONResponse(content={'url': presigned_url}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error accessing the document: {str(e)}")

@@ -176,6 +176,7 @@ def generate_email(email_generation_request: LinkedinURLEmailGenerationRequest, 
     
     username = current_user['username']
     
+
     retrieval_strategy = LinkedInDataRetrievalStrategy(request_data['linkedin_url'])
     email_generator = EmailGenerator(request_data['user_prompt'], request_data['selected_documents'], request_data['selected_emails'],retrieval_strategy, username=username, company_name=request_data['company_name'])
     email = email_generator.generate_email()
@@ -413,15 +414,17 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
 
 
 
-@app.post('/bulk-email-generation/')
+@app.post('/bulk-email-generation')
 def generate_bulk_emails(request_data: BulkEmailGenerationRequest, current_user: dict = Depends(get_current_user)):
     request_data = request_data.dict()
-    
+
     username = current_user['username']
     
     generated_emails = []
     
     # Iterate through the dictionary of {url: email}
+    
+    
     for url, email in request_data['linkedin_url_dict'].items():
         retrieval_strategy = LinkedInDataRetrievalStrategy(url)
         email_generator = EmailGenerator(
@@ -464,8 +467,8 @@ def generate_bulk_emails(request_data: BulkEmailGenerationRequest, current_user:
         person_data = json.loads(person_data)
         person_data['url'] = url
         
-        db_handler.insert_email(data)
-        db_handler.insert_person(person_data)
+        #db_handler.insert_email(data)
+        #db_handler.insert_person(person_data)
     
     
     dummy_emails = []
@@ -480,8 +483,10 @@ def generate_bulk_emails(request_data: BulkEmailGenerationRequest, current_user:
             }
         }
     dummy_emails.append(dummy_email_data)
-        
-    return JSONResponse(content=generated_emails, status_code=200)
+
+    
+    
+    return JSONResponse(content=dummy_emails, status_code=200)
 
 
 
