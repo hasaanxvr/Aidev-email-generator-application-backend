@@ -40,19 +40,17 @@ spaces_manager = DigitalOceanSpacesManager(
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",
-    "https://urchin-app-7vbv4.ondigitalocean.app"
+    "https://ai.groupevelanmedia.com",  # Your frontend domain
+    "https://ai-email-generation.groupevelanmedia.com",  # Your backend domain (optional)
+    "http://localhost:3000",  # If you're testing locally
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://ai-email-generation.groupevelanmedia.com"
-    ],
+    allow_origins=origins,  # Allow specific origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 
