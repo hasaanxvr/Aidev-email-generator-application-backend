@@ -46,7 +46,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -106,15 +106,6 @@ def find_person_by_name_and_org(find_person_request: FindPersonByNameAndOrg, cur
     #}
     
     return JSONResponse(content=data, status_code=200)
-
-
-
-
-
-
-
-
-
 
 
 
@@ -302,6 +293,9 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
     #os.makedirs(f'{FILE_STORAGE_PATH}/{username}', exist_ok=True)
     spaces_manager.create_folder(username)
     
+    # send an email notification
+    
+    
     return JSONResponse(status_code=200, content={"message": "Signup successful!"})
 
 
@@ -326,12 +320,6 @@ def find_email(request_data: FindEmailRequest, current_user: dict = Depends(get_
     else:
         return JSONResponse(content={"error": "Failed to fetch email"}, status_code=response.status_code)
     
-    #data = {
-    #    'emails': ['hasaan1108@gmail.com', 'l191011@lhr.nu.edu.pk' ],
-    #    'invalid_emails': ['fakeemail@something.com']
-    #}
-    
-    #return JSONResponse(content=data, status_code=200)
 
     
 
