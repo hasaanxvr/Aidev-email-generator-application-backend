@@ -2,7 +2,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-def send_email(username):
+def send_email_notification(username):
     # Set up the MIME
     message = MIMEMultipart()
     message['From'] = "hasaan1108@gmail.com"

@@ -6,6 +6,7 @@ import smtplib
 import pandas as pd
 import shutil
 from datetime import datetime
+from send_email import send_email_notification
 from pymongo.errors import PyMongoError
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -294,7 +295,7 @@ def signup(signup_request: SignupRequest) -> JSONResponse:
     spaces_manager.create_folder(username)
     
     # send an email notification
-    
+    send_email_notification(request_data['username'])
     
     return JSONResponse(status_code=200, content={"message": "Signup successful!"})
 
